@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 今日のタスク
 
-## Getting Started
+Google Tasks と連携し、今日が期限のタスクを全リストから一覧表示する Next.js アプリ。
 
-First, run the development server:
+## 使い方
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### 1. Google Cloud Console の設定
+
+#### 1-1. プロジェクトの作成
+
+1. [Google Cloud Console](https://console.cloud.google.com/) を開く
+2. 画面上部のプロジェクト選択 → **「新しいプロジェクト」** をクリック
+3. プロジェクト名を入力して作成
+
+#### 1-2. Google Tasks API の有効化
+
+1. 左メニュー **「APIとサービス」→「ライブラリ」** を開く
+2. 検索欄に **「Google Tasks API」** と入力
+3. 結果をクリック → **「有効にする」** ボタンを押す
+
+#### 1-3. OAuth 同意画面の設定
+
+1. 左メニュー **「Google Auth Platform」→「概要」** を開く（または「APIとサービス」→「OAuth 同意画面」）
+2. **「開始」** をクリックし、以下を入力：
+   - アプリ名: 任意（例: `今日のタスク`）
+   - ユーザーサポートメール: 自分のメールアドレス
+3. **「対象」** セクションで **「外部」** を選択 → 保存
+4. **「テストユーザー」** に自分の Google アカウントのメールアドレスを追加
+
+#### 1-4. OAuth 2.0 クライアント ID の作成
+
+1. 左メニュー **「APIとサービス」→「認証情報」** を開く
+2. **「認証情報を作成」→「OAuth クライアント ID」** をクリック
+3. 以下を設定：
+   - アプリケーションの種類: **「ウェブアプリケーション」**
+   - 承認済みのリダイレクト URI: `http://localhost:3000/api/auth/callback/google` を追加
+4. 作成後に表示される **クライアント ID** と **クライアントシークレット** をコピーしておく
+
+---
+
+### 2. 環境変数の設定
+
+プロジェクトルートの `.env.local` を編集：
+
+```env
+GOOGLE_CLIENT_ID=取得したクライアントID
+GOOGLE_CLIENT_SECRET=取得したクライアントシークレット
+AUTH_SECRET=ランダムな文字列（下記コマンドで生成）
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`AUTH_SECRET` の生成:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+openssl rand -base64 32
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+### 3. 起動
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`http://localhost:3000` を開いて **「Google でログイン」** をクリック。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 機能
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Google アカウントで OAuth 2.0 ログイン / ログアウト
+- 全タスクリストから今日期限のタスクを抽出して一覧表示
+- 各タスクにリスト名バッジを表示
+- 丸ボタンでタスクを完了にする
+- 「更新」ボタンで最新状態を再取得
