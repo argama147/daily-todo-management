@@ -4,6 +4,7 @@ import { google } from "googleapis";
 
 export async function GET() {
   const session = await auth();
+  console.log("[tasks] session accessToken:", session?.accessToken ? "present" : "missing");
 
   if (!session?.accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -63,9 +64,10 @@ export async function GET() {
 
     return NextResponse.json({ tasks: todayTasks });
   } catch (err) {
-    console.error("Google Tasks API error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Google Tasks API error:", message);
     return NextResponse.json(
-      { error: "Failed to fetch tasks" },
+      { error: "Failed to fetch tasks", detail: process.env.NODE_ENV === "development" ? message : undefined },
       { status: 500 }
     );
   }
