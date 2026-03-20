@@ -24,7 +24,10 @@ export default function Home() {
     setError(null);
     try {
       const res = await fetch("/api/tasks");
-      if (!res.ok) throw new Error("タスクの取得に失敗しました");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail ?? "タスクの取得に失敗しました");
+      }
       const data = await res.json();
       setTasks(data.tasks);
     } catch (e) {
@@ -35,6 +38,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (session?.error === "RefreshTokenError") {
+      signIn("google");
+      return;
+    }
     if (session) {
       fetchTasks();
     }
