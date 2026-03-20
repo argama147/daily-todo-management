@@ -76,7 +76,9 @@ Route Handler (tasks/route.ts)
 Route Handler
   └─ tasks.patch({ status: "completed" }) → Google Tasks API を更新
         ↓
-クライアント側で該当タスクをリストから除去（楽観的更新なし・確認後に除去）
+クライアント側: 楽観的更新（300msアニメーション後に未完了→完了列に移動）
+PATCH成功後: GET /api/tasks で同期検証・不一致修正
+PATCH失敗時: ロールバック（完了列から除去・未完了列に戻す）＋エラー表示
 ```
 
 ---
@@ -89,9 +91,11 @@ Route Handler
 
 | state | 型 | 役割 |
 |---|---|---|
-| `tasks` | `Task[]` | 表示するタスク一覧 |
+| `incompleteTasks` | `Task[]` | 未完了タスク一覧（APIから取得） |
+| `completedTasks` | `Task[]` | 完了タスク一覧（セッション内状態・操作で追加） |
 | `loading` | `boolean` | ローディング表示制御 |
-| `completing` | `Set<string>` | 完了処理中のタスクID（ボタン無効化用） |
+| `completing` | `Set<string>` | フェードアウト中のタスクID |
+| `newlyCompleted` | `Set<string>` | スライドイン中のタスクID（アニメーション後に除去） |
 | `error` | `string \| null` | エラーメッセージ表示 |
 
 **表示の分岐:**
@@ -99,9 +103,82 @@ Route Handler
 ```
 未ログイン      → ログインボタン画面
 ローディング中  → 「読み込み中...」
-タスクあり      → タスクカード一覧
-タスクなし      → 「今日期限のタスクはありません」
+ログイン済み    → 未完了/完了 2カラムレイアウト
+タスクなし      → 「今日期限のタスクはありません」（未完了列に表示）
 ```
+
+---
+
+## 楽観的更新とUI状態管理
+
+### 採用背景
+
+PATCH完了を待ってからUIを更新すると、操作のフィードバックが遅れユーザー体験が悪化する。楽観的更新を採用することで操作直後に画面が反応し、失敗時はロールバックして整合性を保つ。
+
+### completeTask() のフロー
+
+```
+ユーザーが ○ をクリック
+    ↓
+1. completing に task.id を追加
+   → 未完了列のカードに fadeOut アニメーション (300ms)
+
+    ↓ (300ms後 setTimeout)
+
+2. incompleteTasks から除去 + completedTasks 先頭に追加
+   completing から除去、newlyCompleted に追加
+   → 完了列にカードが slideInFromTop アニメーション付きで出現
+   → 400ms後に newlyCompleted から除去
+
+    ↓ (PATCHは1と並行して実行中)
+
+3. PATCH結果を処理
+   ├─ 成功: GET /api/tasks でサーバー状態を取得し setIncompleteTasks で同期
+   └─ 失敗: completedTasks から除去 + incompleteTasks に戻す + エラー表示
+```
+
+**ポイント:** PATCHとアニメーション(300ms)は並行実行。PATCHはアニメーション完了を待たない。
+
+### PATCH失敗時のロールバック方針
+
+- `completedTasks` から該当タスクを除去
+- `incompleteTasks` の先頭に該当タスクを戻す
+- エラーメッセージを表示してユーザーに知らせる
+
+---
+
+## 2カラムレイアウトと完了アニメーション
+
+### レイアウト
+
+```
+┌──────────────────────┬──────────────────────────────┐
+│ 未完了 (N件)         │ 完了 (N件)                   │
+│ ┌──────────────────┐ │ ┌──────────────────────────┐ │
+│ │ ○ タスクA       │ │ │ ✓ タスクB (取り消し線)   │ │
+│ └──────────────────┘ │ └──────────────────────────┘ │
+└──────────────────────┴───────────────────────────────┘
+```
+
+- レスポンシブ: モバイル(`md`未満)では縦積み（未完了 → 完了の順）
+- 完了列のタスクはチェックマーク付き、テキストに取り消し線、緑背景
+
+### CSSアニメーション (globals.css)
+
+```css
+@keyframes slideInFromTop {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.95); }
+}
+```
+
+- `completing.has(task.id)` → `style={{ animation: 'fadeOut 300ms forwards' }}`
+- `newlyCompleted.has(task.id)` → `style={{ animation: 'slideInFromTop 300ms ease-out' }}`
 
 ---
 
