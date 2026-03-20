@@ -14,9 +14,11 @@ type Task = {
 
 export default function Home() {
   const { data: session, status } = useSession();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [incompleteTasks, setIncompleteTasks] = useState<Task[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState<Set<string>>(new Set());
+  const [newlyCompleted, setNewlyCompleted] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
@@ -29,7 +31,7 @@ export default function Home() {
         throw new Error(body.detail ?? "タスクの取得に失敗しました");
       }
       const data = await res.json();
-      setTasks(data.tasks);
+      setIncompleteTasks(data.tasks);
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
@@ -48,23 +50,53 @@ export default function Home() {
   }, [session, fetchTasks]);
 
   const completeTask = async (task: Task) => {
+    // 1. フェードアウト開始
     setCompleting((prev) => new Set(prev).add(task.id));
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: task.id, listId: task.listId }),
-      });
-      if (!res.ok) throw new Error("更新に失敗しました");
-      setTasks((prev) => prev.filter((t) => t.id !== task.id));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "エラーが発生しました");
-    } finally {
+
+    // PATCHは並行して開始
+    const patchPromise = fetch("/api/tasks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId: task.id, listId: task.listId }),
+    });
+
+    // 2. 300ms後に画面を更新（楽観的更新）
+    setTimeout(() => {
       setCompleting((prev) => {
         const next = new Set(prev);
         next.delete(task.id);
         return next;
       });
+      setIncompleteTasks((prev) => prev.filter((t) => t.id !== task.id));
+      setCompletedTasks((prev) => [task, ...prev]);
+      setNewlyCompleted((prev) => new Set(prev).add(task.id));
+
+      // スライドインアニメーション終了後にnewlyCompletedから除去
+      setTimeout(() => {
+        setNewlyCompleted((prev) => {
+          const next = new Set(prev);
+          next.delete(task.id);
+          return next;
+        });
+      }, 400);
+    }, 300);
+
+    // 3. PATCH結果を処理
+    try {
+      const res = await patchPromise;
+      if (!res.ok) throw new Error("更新に失敗しました");
+
+      // 成功後: GETで同期検証
+      const syncRes = await fetch("/api/tasks");
+      if (syncRes.ok) {
+        const data = await syncRes.json();
+        setIncompleteTasks(data.tasks);
+      }
+    } catch (e) {
+      // 失敗: ロールバック
+      setError(e instanceof Error ? e.message : "エラーが発生しました");
+      setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
+      setIncompleteTasks((prev) => [task, ...prev]);
     }
   };
 
@@ -126,7 +158,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-800">今日のタスク</h1>
             <p className="text-sm text-gray-500">{today}</p>
@@ -150,50 +182,122 @@ export default function Home() {
       </header>
 
       {/* Main */}
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="max-w-5xl mx-auto px-4 py-6">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
           </div>
         )}
 
-        {loading && tasks.length === 0 ? (
+        {loading && incompleteTasks.length === 0 && completedTasks.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             タスクを取得中...
           </div>
-        ) : tasks.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="text-5xl mb-4">🎉</div>
-            <p className="text-gray-500 text-lg">
-              今日期限のタスクはありません
-            </p>
-          </div>
         ) : (
-          <div className="space-y-2">
-            <p className="text-sm text-gray-500 mb-4">
-              {tasks.length} 件のタスク
-            </p>
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
-              >
-                <button
-                  onClick={() => completeTask(task)}
-                  disabled={completing.has(task.id)}
-                  className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="完了にする"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-gray-800 font-medium leading-snug">
-                    {task.title}
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* 未完了カラム */}
+            <div className="flex-1">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                未完了{" "}
+                <span className="font-normal text-gray-400">
+                  ({incompleteTasks.length}件)
+                </span>
+              </h2>
+              {incompleteTasks.length === 0 && completedTasks.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-4xl mb-3">🎉</div>
+                  <p className="text-gray-500">
+                    今日期限のタスクはありません
                   </p>
-                  <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
-                    {task.listTitle}
-                  </span>
                 </div>
-              </div>
-            ))}
+              ) : incompleteTasks.length === 0 ? (
+                <div className="text-center py-12 text-gray-400 text-sm">
+                  すべて完了しました！
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {incompleteTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
+                      style={
+                        completing.has(task.id)
+                          ? { animation: "fadeOut 300ms forwards" }
+                          : undefined
+                      }
+                    >
+                      <button
+                        onClick={() => completeTask(task)}
+                        disabled={completing.has(task.id)}
+                        className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="完了にする"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-800 font-medium leading-snug">
+                          {task.title}
+                        </p>
+                        <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
+                          {task.listTitle}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 完了カラム */}
+            <div className="flex-1">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                完了{" "}
+                <span className="font-normal text-gray-400">
+                  ({completedTasks.length}件)
+                </span>
+              </h2>
+              {completedTasks.length === 0 ? (
+                <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                  完了したタスクがここに表示されます
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {completedTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 shadow-sm opacity-80"
+                      style={
+                        newlyCompleted.has(task.id)
+                          ? { animation: "slideInFromTop 300ms ease-out" }
+                          : undefined
+                      }
+                    >
+                      <div className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                        <svg
+                          className="w-3 h-3 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-500 font-medium leading-snug line-through">
+                          {task.title}
+                        </p>
+                        <span className="inline-block mt-1 text-xs text-gray-400 bg-green-100 rounded px-2 py-0.5">
+                          {task.listTitle}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
