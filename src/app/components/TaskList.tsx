@@ -6,11 +6,13 @@ import type { Task } from "@/lib/tasks";
 
 type Props = {
   initialTasks: Task[];
+  initialExpiredTasks: Task[];
   initialCompletedTasks?: Task[];
 };
 
-export default function TaskList({ initialTasks, initialCompletedTasks }: Props) {
+export default function TaskList({ initialTasks, initialExpiredTasks, initialCompletedTasks }: Props) {
   const [incompleteTasks, setIncompleteTasks] = useState<Task[]>(initialTasks);
+  const [expiredTasks, setExpiredTasks] = useState<Task[]>(initialExpiredTasks);
   const [completedTasks, setCompletedTasks] = useState<Task[]>(initialCompletedTasks ?? []);
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState<Set<string>>(new Set());
@@ -27,7 +29,8 @@ export default function TaskList({ initialTasks, initialCompletedTasks }: Props)
         throw new Error(body.detail ?? "タスクの取得に失敗しました");
       }
       const data = await res.json();
-      setIncompleteTasks(data.tasks);
+      setIncompleteTasks(data.todayTasks);
+      setExpiredTasks(data.expiredTasks);
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
@@ -51,6 +54,7 @@ export default function TaskList({ initialTasks, initialCompletedTasks }: Props)
         return next;
       });
       setIncompleteTasks((prev) => prev.filter((t) => t.id !== task.id));
+      setExpiredTasks((prev) => prev.filter((t) => t.id !== task.id));
       setCompletedTasks((prev) => [task, ...prev]);
       setNewlyCompleted((prev) => new Set(prev).add(task.id));
 
@@ -70,12 +74,18 @@ export default function TaskList({ initialTasks, initialCompletedTasks }: Props)
       const syncRes = await fetch("/api/tasks");
       if (syncRes.ok) {
         const data = await syncRes.json();
-        setIncompleteTasks(data.tasks);
+        setIncompleteTasks(data.todayTasks);
+        setExpiredTasks(data.expiredTasks);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
       setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
-      setIncompleteTasks((prev) => [task, ...prev]);
+      const isExpired = new Date(task.due).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) < new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+      if (isExpired) {
+        setExpiredTasks((prev) => [task, ...prev]);
+      } else {
+        setIncompleteTasks((prev) => [task, ...prev]);
+      }
     }
   };
 
@@ -119,10 +129,54 @@ export default function TaskList({ initialTasks, initialCompletedTasks }: Props)
           </div>
         )}
 
-        {loading && incompleteTasks.length === 0 && completedTasks.length === 0 ? (
+        {loading && incompleteTasks.length === 0 && expiredTasks.length === 0 && completedTasks.length === 0 ? (
           <div className="text-center py-16 text-gray-400">タスクを取得中...</div>
         ) : (
-          <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* 期限切れカラム */}
+            <div className="flex-1">
+              <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
+                期限切れ{" "}
+                <span className="font-normal text-red-400">
+                  ({expiredTasks.length}件)
+                </span>
+              </h2>
+              {expiredTasks.length === 0 ? (
+                <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                  期限切れタスクがここに表示されます
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {expiredTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 shadow-sm"
+                      style={
+                        completing.has(task.id)
+                          ? { animation: "fadeOut 300ms forwards" }
+                          : undefined
+                      }
+                    >
+                      <button
+                        onClick={() => completeTask(task)}
+                        disabled={completing.has(task.id)}
+                        className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-red-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="完了にする"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-red-800 font-medium leading-snug">
+                          {task.title}
+                        </p>
+                        <span className="inline-block mt-1 text-xs text-red-500 bg-red-100 rounded px-2 py-0.5">
+                          {task.listTitle}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* 未完了カラム */}
             <div className="flex-1">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
@@ -131,7 +185,7 @@ export default function TaskList({ initialTasks, initialCompletedTasks }: Props)
                   ({incompleteTasks.length}件)
                 </span>
               </h2>
-              {incompleteTasks.length === 0 && completedTasks.length === 0 ? (
+              {incompleteTasks.length === 0 && expiredTasks.length === 0 && completedTasks.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-4xl mb-3">🎉</div>
                   <p className="text-gray-500">今日期限のタスクはありません</p>
