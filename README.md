@@ -68,6 +68,14 @@ npm run dev
 
 ---
 
+## 開発フロー
+
+| 作業 | リンク |
+|---|---|
+| 仕様Issueを作成 | [New 仕様 Issue](../../issues/new?template=spec.md&labels=spec&assignees=argama147&title=%5B%E4%BB%95%E6%A7%98%5D%20) |
+
+---
+
 ## 機能
 
 - Google アカウントで OAuth 2.0 ログイン / ログアウト
