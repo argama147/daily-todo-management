@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "auth";
 import { google } from "googleapis";
-import { fetchTodayTasks } from "@/lib/tasks";
+import { fetchTodayTasks, fetchExpiredTasks } from "@/lib/tasks";
 
 export async function GET() {
   const session = await auth();
@@ -11,8 +11,11 @@ export async function GET() {
   }
 
   try {
-    const tasks = await fetchTodayTasks(session.accessToken as string);
-    return NextResponse.json({ tasks });
+    const [todayTasks, expiredTasks] = await Promise.all([
+      fetchTodayTasks(session.accessToken as string),
+      fetchExpiredTasks(session.accessToken as string),
+    ]);
+    return NextResponse.json({ todayTasks, expiredTasks });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Google Tasks API error:", message);

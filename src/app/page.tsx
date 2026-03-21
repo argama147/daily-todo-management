@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { auth } from "auth";
 import { redirect } from "next/navigation";
-import { fetchTodayTasks, fetchTodayCompletedTasks } from "@/lib/tasks";
+import { fetchTodayTasks, fetchExpiredTasks, fetchTodayCompletedTasks } from "@/lib/tasks";
 import TaskList from "@/app/components/TaskList";
 import LoginButton from "@/app/components/LoginButton";
 
@@ -17,10 +17,11 @@ export default async function Home() {
     redirect("/api/auth/signin?provider=google");
   }
 
-  const [tasks, completedTasks] = await Promise.all([
+  const [tasks, expiredTasks, completedTasks] = await Promise.all([
     fetchTodayTasks(session.accessToken as string),
+    fetchExpiredTasks(session.accessToken as string),
     fetchTodayCompletedTasks(session.accessToken as string),
   ]);
 
-  return <TaskList initialTasks={tasks} initialCompletedTasks={completedTasks} />;
+  return <TaskList initialTasks={tasks} initialExpiredTasks={expiredTasks} initialCompletedTasks={completedTasks} />;
 }
