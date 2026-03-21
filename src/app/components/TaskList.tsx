@@ -167,9 +167,21 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                         <p className="text-red-800 font-medium leading-snug">
                           {task.title}
                         </p>
-                        <span className="inline-block mt-1 text-xs text-red-500 bg-red-100 rounded px-2 py-0.5">
-                          {task.listTitle}
-                        </span>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <span className="text-xs text-red-500 bg-red-100 rounded px-2 py-0.5">
+                            {task.listTitle}
+                          </span>
+                          <span className="text-xs text-red-600 bg-red-200 rounded px-2 py-0.5 font-medium">
+                            期限: {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                            ({(() => {
+                              const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+                              const taskDate = task.due.slice(0, 10);
+                              const diffTime = new Date(today).getTime() - new Date(taskDate).getTime();
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                              return `${diffDays}日経過`;
+                            })()})
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
