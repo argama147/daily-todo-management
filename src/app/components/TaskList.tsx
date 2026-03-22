@@ -152,7 +152,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             {/* 期限切れカラム */}
             <div className="flex-1">
               <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
-                期限切れ{" "}
+                期限切れタスク{" "}
                 <span className="font-normal text-red-400">
                   ({expiredTasks.length}件)
                 </span>
@@ -208,7 +208,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             {/* 未完了カラム */}
             <div className="flex-1">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                未完了{" "}
+                本日の未完了タスク{" "}
                 <span className="font-normal text-gray-400">
                   ({incompleteTasks.length}件)
                 </span>
@@ -257,7 +257,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             {/* 完了カラム */}
             <div className="flex-1">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                完了{" "}
+                完了したタスク{" "}
                 <span className="font-normal text-gray-400">
                   ({completedTasks.length}件)
                 </span>
