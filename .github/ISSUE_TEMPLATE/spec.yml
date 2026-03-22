@@ -3,8 +3,6 @@ description: 仕様の追加・変更を提案する
 title: "[仕様] "
 labels:
   - spec
-assignees:
-  - argama147
 body:
   - type: textarea
     id: overview
