@@ -1,0 +1,32 @@
+name: Restrict Contributions
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  close-if-not-owner:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Close issue if not owner
+        if: github.event_name == 'issues' && github.event.issue.user.login != 'argama147'
+        run: |
+          gh issue close ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }} \
+            --comment "このリポジトリはオーナーのみ Issue を作成できます。コメントは歓迎します。"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Close PR if not owner
+        if: github.event_name == 'pull_request_target' && github.event.pull_request.user.login != 'argama147'
+        run: |
+          gh pr close ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --comment "このリポジトリはオーナーのみ Pull Request を作成できます。"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
