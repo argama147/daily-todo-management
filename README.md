@@ -1,8 +1,25 @@
-# 今日のタスク
+# 今日のタスク（Webアプリ） の開発リポジトリ
 
 Google Tasks と連携し、今日が期限のタスクを全リストから一覧表示する Next.js アプリ。
 
+期限切れのタスクや完了したタスク（今日操作したもののみ）もリスト表示します。
+
+Googleカレンダーのタスク管理画面だと、リストの種類がたくさんある場合、今日が期限タスクがわかりずらい画面構成となっている。そこで今日のタスクを中心としたWebアプリを作ってみた。
+
+現在はlocalhostでのみ動作確認。
+
+|Googleカレンダーのタスク管理画面|
+|----|
+|<img width="1095" height="294" alt="スクリーンショット 2026-03-22 21 27 10" src="https://github.com/user-attachments/assets/bdc7d9c6-21b1-4b76-8f7d-1270f3818e34" />|
+
+
+|このアプリ動作画面（画面は開発中のものです）|
+|----|
+|<img width="551" height="212.5" alt="スクリーンショット 2026-03-22 21 25 17" src="https://github.com/user-attachments/assets/67520564-81ba-49b5-b4fa-3ed6c0dfc374" />|
+
+
 ## 使い方
+
 
 ### 1. Google Cloud Console の設定
 
