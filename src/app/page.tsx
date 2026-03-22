@@ -23,5 +23,5 @@ export default async function Home() {
     fetchTodayCompletedTasks(session.accessToken as string),
   ]);
 
-  return <TaskList initialTasks={tasks} initialExpiredTasks={expiredTasks} initialCompletedTasks={completedTasks} />;
+  return <TaskList initialTasks={tasks} initialExpiredTasks={expiredTasks} initialCompletedTasks={completedTasks} user={session.user} />;
 }

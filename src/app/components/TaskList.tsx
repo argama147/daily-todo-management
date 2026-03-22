@@ -3,14 +3,16 @@
 import { signOut } from "next-auth/react";
 import { useState, useCallback } from "react";
 import type { Task } from "@/lib/tasks";
+import type { User } from "next-auth";
 
 type Props = {
   initialTasks: Task[];
   initialExpiredTasks: Task[];
   initialCompletedTasks?: Task[];
+  user?: User;
 };
 
-export default function TaskList({ initialTasks, initialExpiredTasks, initialCompletedTasks }: Props) {
+export default function TaskList({ initialTasks, initialExpiredTasks, initialCompletedTasks, user }: Props) {
   const [incompleteTasks, setIncompleteTasks] = useState<Task[]>(initialTasks);
   const [expiredTasks, setExpiredTasks] = useState<Task[]>(initialExpiredTasks);
   const [completedTasks, setCompletedTasks] = useState<Task[]>(initialCompletedTasks ?? []);
@@ -112,6 +114,20 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             >
               {loading ? "更新中..." : "更新"}
             </button>
+            {user && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-lg">
+                {user.image && (
+                  <img
+                    src={user.image}
+                    alt={user.name || "ユーザー"}
+                    className="w-6 h-6 rounded-full"
+                  />
+                )}
+                <span className="text-sm text-gray-700 font-medium">
+                  {user.name || user.email}
+                </span>
+              </div>
+            )}
             <button
               onClick={() => signOut()}
               className="text-sm text-gray-500 hover:text-gray-700"
