@@ -29,8 +29,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         throw new Error(body.detail ?? "タスクの取得に失敗しました");
       }
       const data = await res.json();
-      setIncompleteTasks(data.todayTasks);
-      setExpiredTasks(data.expiredTasks);
+      setIncompleteTasks(data.todayTasks ?? []);
+      setExpiredTasks(data.expiredTasks ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
