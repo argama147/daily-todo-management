@@ -23,3 +23,9 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_users: "argama147"
+          custom_instructions: |
+            必ず日本語で回答・コメント・PRの作成を行ってください。
+            PR本文は以下の形式に従ってください：
+            - タイトル: 日本語で簡潔に
+            - 本文: 実装内容・変更ファイル・テスト手順を日本語で記載
+            - 関連Issueは必ず `Closes #xxx` 形式で記載してください
