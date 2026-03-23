@@ -6,7 +6,8 @@
   
   "permissions": [
     "identity",
-    "storage"
+    "storage",
+    "alarms"
   ],
   
   "host_permissions": [
@@ -15,7 +16,7 @@
   
   "oauth2": {
     "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
-    "scopes": ["https://www.googleapis.com/auth/tasks"]
+    "scopes": ["https://www.googleapis.com/auth/tasks", "email", "profile"]
   },
   
   "background": {
