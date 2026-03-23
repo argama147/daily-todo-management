@@ -18,6 +18,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [completedTasks, setCompletedTasks] = useState<Task[]>(initialCompletedTasks ?? []);
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState<Set<string>>(new Set());
+  const [uncompleting, setUncompleting] = useState<Set<string>>(new Set());
   const [newlyCompleted, setNewlyCompleted] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
@@ -87,6 +88,55 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         setExpiredTasks((prev) => [task, ...prev]);
       } else {
         setIncompleteTasks((prev) => [task, ...prev]);
+      }
+    }
+  };
+
+  const uncompleteTask = async (task: Task) => {
+    setUncompleting((prev) => new Set(prev).add(task.id));
+
+    const patchPromise = fetch("/api/tasks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId: task.id, listId: task.listId, status: "needsAction" }),
+    });
+
+    setTimeout(() => {
+      setUncompleting((prev) => {
+        const next = new Set(prev);
+        next.delete(task.id);
+        return next;
+      });
+      setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
+      
+      // Add back to appropriate list based on due date
+      const isExpired = new Date(task.due).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) < new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+      if (isExpired) {
+        setExpiredTasks((prev) => [task, ...prev]);
+      } else {
+        setIncompleteTasks((prev) => [task, ...prev]);
+      }
+    }, 300);
+
+    try {
+      const res = await patchPromise;
+      if (!res.ok) throw new Error("更新に失敗しました");
+
+      const syncRes = await fetch("/api/tasks");
+      if (syncRes.ok) {
+        const data = await syncRes.json();
+        setIncompleteTasks(data.todayTasks);
+        setExpiredTasks(data.expiredTasks);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "エラーが発生しました");
+      // On error, restore task to completed list
+      setCompletedTasks((prev) => [task, ...prev]);
+      const isExpired = new Date(task.due).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) < new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+      if (isExpired) {
+        setExpiredTasks((prev) => prev.filter((t) => t.id !== task.id));
+      } else {
+        setIncompleteTasks((prev) => prev.filter((t) => t.id !== task.id));
       }
     }
   };
@@ -275,10 +325,17 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                       style={
                         newlyCompleted.has(task.id)
                           ? { animation: "slideInFromTop 300ms ease-out" }
+                          : uncompleting.has(task.id)
+                          ? { animation: "fadeOut 300ms forwards" }
                           : undefined
                       }
                     >
-                      <div className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                      <button
+                        onClick={() => uncompleteTask(task)}
+                        disabled={uncompleting.has(task.id)}
+                        className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-green-500 hover:bg-gray-300 hover:border-2 hover:border-gray-400 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="未完了にする"
+                      >
                         <svg
                           className="w-3 h-3 text-white"
                           fill="none"
@@ -292,7 +349,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             d="M5 13l4 4L19 7"
                           />
                         </svg>
-                      </div>
+                      </button>
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-500 font-medium leading-snug line-through">
                           {task.title}
