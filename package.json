@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:extension": "node scripts/build-extension.js",
+    "package:extension": "npm run build:extension && zip -r extension.zip manifest.json popup.html popup.css popup.js background.js icons/",
+    "dev:extension": "npm run build:extension"
   },
   "dependencies": {
     "googleapis": "^171.4.0",

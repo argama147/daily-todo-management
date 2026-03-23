@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "今日のタスク - Chrome拡張版",
+  "version": "1.0.0",
+  "description": "Google Tasksと連携し、今日期限のタスクを表示するChrome拡張",
+  
+  "permissions": [
+    "identity",
+    "storage"
+  ],
+  
+  "host_permissions": [
+    "https://www.googleapis.com/*"
+  ],
+  
+  "oauth2": {
+    "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/tasks"]
+  },
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "今日のタスク",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

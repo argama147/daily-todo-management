@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>今日のタスク</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+    <div id="login-container" class="hidden">
+      <div class="login-content">
+        <h1>今日のタスク</h1>
+        <p>Google Tasksと連携して、今日期限のタスクを表示します</p>
+        <button id="login-btn" class="login-button">Googleでログイン</button>
+      </div>
+    </div>
+
+    <div id="main-container" class="hidden">
+      <header class="header">
+        <div class="header-content">
+          <div class="header-left">
+            <h1>今日のタスク</h1>
+            <p id="today-date" class="date"></p>
+          </div>
+          <div class="header-right">
+            <button id="refresh-btn" class="refresh-btn">更新</button>
+            <div id="user-info" class="user-info"></div>
+            <button id="logout-btn" class="logout-btn">ログアウト</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="main">
+        <div id="error-message" class="error hidden"></div>
+        <div id="loading" class="loading hidden">タスクを取得中...</div>
+        
+        <div id="task-columns" class="task-columns">
+          <!-- 期限切れタスク -->
+          <div class="column">
+            <h2 class="column-title expired">
+              期限切れタスク <span id="expired-count" class="count">(0件)</span>
+            </h2>
+            <div id="expired-tasks" class="task-list"></div>
+          </div>
+
+          <!-- 今日のタスク -->
+          <div class="column">
+            <h2 class="column-title today">
+              本日の未完了タスク <span id="today-count" class="count">(0件)</span>
+            </h2>
+            <div id="today-tasks" class="task-list"></div>
+          </div>
+
+          <!-- 完了済みタスク -->
+          <div class="column">
+            <h2 class="column-title completed">
+              完了したタスク <span id="completed-count" class="count">(0件)</span>
+            </h2>
+            <div id="completed-tasks" class="task-list"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
