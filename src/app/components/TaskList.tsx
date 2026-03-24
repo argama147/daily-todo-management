@@ -23,6 +23,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [error, setError] = useState<string | null>(null);
   type TabKey = "expired" | "today" | "completed";
   const [activeTab, setActiveTab] = useState<TabKey>("today");
+  const [changingDue, setChangingDue] = useState<Set<string>>(new Set());
+  const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -143,6 +145,32 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     }
   };
 
+  const changeDueDate = async (task: Task, newDue: string) => {
+    setChangingDue((prev) => new Set(prev).add(task.id));
+    setShowDatePicker(null);
+
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: task.id, listId: task.listId, due: newDue }),
+      });
+
+      if (!res.ok) throw new Error("期限の変更に失敗しました");
+
+      // タスクリストを再取得
+      await fetchTasks();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "エラーが発生しました");
+    } finally {
+      setChangingDue((prev) => {
+        const next = new Set(prev);
+        next.delete(task.id);
+        return next;
+      });
+    }
+  };
+
   const today = new Date().toLocaleDateString("ja-JP", {
     year: "numeric",
     month: "long",
@@ -253,6 +281,26 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               </span>
                             </div>
                           </div>
+                          <div className="flex-shrink-0 ml-2">
+                            {showDatePicker === task.id ? (
+                              <input
+                                type="date"
+                                defaultValue={task.due.slice(0, 10)}
+                                onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
+                                onBlur={() => setShowDatePicker(null)}
+                                className="text-xs p-1 border rounded"
+                                autoFocus
+                              />
+                            ) : (
+                              <button
+                                onClick={() => setShowDatePicker(task.id)}
+                                disabled={changingDue.has(task.id)}
+                                className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -280,6 +328,26 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-800 font-medium leading-snug">{task.title}</p>
                             <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                          </div>
+                          <div className="flex-shrink-0 ml-2">
+                            {showDatePicker === task.id ? (
+                              <input
+                                type="date"
+                                defaultValue={new Date().toISOString().split('T')[0]}
+                                onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
+                                onBlur={() => setShowDatePicker(null)}
+                                className="text-xs p-1 border rounded"
+                                autoFocus
+                              />
+                            ) : (
+                              <button
+                                onClick={() => setShowDatePicker(task.id)}
+                                disabled={changingDue.has(task.id)}
+                                className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -369,6 +437,26 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             </span>
                           </div>
                         </div>
+                        <div className="flex-shrink-0 ml-2">
+                          {showDatePicker === task.id ? (
+                            <input
+                              type="date"
+                              defaultValue={task.due.slice(0, 10)}
+                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
+                              onBlur={() => setShowDatePicker(null)}
+                              className="text-xs p-1 border rounded"
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setShowDatePicker(task.id)}
+                              disabled={changingDue.has(task.id)}
+                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -417,6 +505,26 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
                             {task.listTitle}
                           </span>
+                        </div>
+                        <div className="flex-shrink-0 ml-2">
+                          {showDatePicker === task.id ? (
+                            <input
+                              type="date"
+                              defaultValue={new Date().toISOString().split('T')[0]}
+                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
+                              onBlur={() => setShowDatePicker(null)}
+                              className="text-xs p-1 border rounded"
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setShowDatePicker(task.id)}
+                              disabled={changingDue.has(task.id)}
+                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

@@ -33,7 +33,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { taskId, listId, status = "completed" } = await request.json();
+  const { taskId, listId, status = "completed", due } = await request.json();
 
   const oauth2Client = new google.auth.OAuth2();
   oauth2Client.setCredentials({ access_token: session.accessToken });
@@ -41,11 +41,20 @@ export async function PATCH(request: Request) {
   const tasksApi = google.tasks({ version: "v1", auth: oauth2Client });
 
   try {
-    const requestBody: { status: string; completed?: null } = { status };
+    const requestBody: { status?: string; completed?: null; due?: string } = {};
     
-    // When uncompleting a task, we need to clear the completed date
-    if (status === "needsAction") {
-      requestBody.completed = null;
+    // Handle status change
+    if (status !== undefined) {
+      requestBody.status = status;
+      // When uncompleting a task, we need to clear the completed date
+      if (status === "needsAction") {
+        requestBody.completed = null;
+      }
+    }
+    
+    // Handle due date change
+    if (due !== undefined) {
+      requestBody.due = due;
     }
 
     await tasksApi.tasks.patch({
