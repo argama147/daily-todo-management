@@ -9,19 +9,31 @@ type Props = {
   initialTasks: Task[];
   initialExpiredTasks: Task[];
   initialCompletedTasks?: Task[];
+  initialFutureTasks?: {
+    withinWeek: Task[];
+    withinMonth: Task[];
+    longTerm: Task[];
+    noDeadline: Task[];
+  };
   user?: User;
 };
 
-export default function TaskList({ initialTasks, initialExpiredTasks, initialCompletedTasks, user }: Props) {
+export default function TaskList({ initialTasks, initialExpiredTasks, initialCompletedTasks, initialFutureTasks, user }: Props) {
   const [incompleteTasks, setIncompleteTasks] = useState<Task[]>(initialTasks);
   const [expiredTasks, setExpiredTasks] = useState<Task[]>(initialExpiredTasks);
   const [completedTasks, setCompletedTasks] = useState<Task[]>(initialCompletedTasks ?? []);
+  const [futureTasks, setFutureTasks] = useState<{
+    withinWeek: Task[];
+    withinMonth: Task[];
+    longTerm: Task[];
+    noDeadline: Task[];
+  }>(initialFutureTasks ?? { withinWeek: [], withinMonth: [], longTerm: [], noDeadline: [] });
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState<Set<string>>(new Set());
   const [uncompleting, setUncompleting] = useState<Set<string>>(new Set());
   const [newlyCompleted, setNewlyCompleted] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  type TabKey = "expired" | "today" | "completed";
+  type TabKey = "expired" | "today" | "completed" | "withinWeek" | "withinMonth" | "longTerm" | "noDeadline";
   const [activeTab, setActiveTab] = useState<TabKey>("today");
   const [changingDue, setChangingDue] = useState<Set<string>>(new Set());
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
@@ -230,16 +242,20 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         ) : (
           <>
             {/* モバイルのみ: タブ */}
-            <div className="flex lg:hidden border-b border-gray-200 mb-4">
+            <div className="flex lg:hidden border-b border-gray-200 mb-4 overflow-x-auto">
               {[
                 { key: "expired" as TabKey, label: "期限切れ", count: expiredTasks.length },
                 { key: "today" as TabKey, label: "本日", count: incompleteTasks.length },
                 { key: "completed" as TabKey, label: "完了", count: completedTasks.length },
+                { key: "withinWeek" as TabKey, label: "一週間", count: futureTasks.withinWeek.length },
+                { key: "withinMonth" as TabKey, label: "一ヶ月", count: futureTasks.withinMonth.length },
+                { key: "longTerm" as TabKey, label: "長期", count: futureTasks.longTerm.length },
+                { key: "noDeadline" as TabKey, label: "期限なし", count: futureTasks.noDeadline.length },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  className={`flex-shrink-0 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab.key
                       ? "border-blue-500 text-blue-600"
                       : "border-transparent text-gray-500"
@@ -383,12 +399,151 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   )}
                 </div>
               )}
+              {activeTab === "withinWeek" && (
+                <div>
+                  <h2 className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-3">
+                    一週間以内のタスク <span className="font-normal text-blue-400">({futureTasks.withinWeek.length}件)</span>
+                  </h2>
+                  {futureTasks.withinWeek.length === 0 ? (
+                    <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">一週間以内のタスクがここに表示されます</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {futureTasks.withinWeek.map((task) => (
+                        <div key={task.id} className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
+                          <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-blue-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-blue-800 font-medium leading-snug">{task.title}</p>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <span className="text-xs text-blue-500 bg-blue-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                              <span className="text-xs text-blue-600 bg-blue-200 rounded px-2 py-0.5 font-medium">
+                                期限: {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 ml-2">
+                            {showDatePicker === task.id ? (
+                              <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
+                            ) : (
+                              <button onClick={() => setShowDatePicker(task.id)} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "withinMonth" && (
+                <div>
+                  <h2 className="text-sm font-semibold text-orange-600 uppercase tracking-wide mb-3">
+                    一ヶ月以内のタスク <span className="font-normal text-orange-400">({futureTasks.withinMonth.length}件)</span>
+                  </h2>
+                  {futureTasks.withinMonth.length === 0 ? (
+                    <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">一ヶ月以内のタスクがここに表示されます</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {futureTasks.withinMonth.map((task) => (
+                        <div key={task.id} className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
+                          <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-orange-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-orange-800 font-medium leading-snug">{task.title}</p>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <span className="text-xs text-orange-500 bg-orange-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                              <span className="text-xs text-orange-600 bg-orange-200 rounded px-2 py-0.5 font-medium">
+                                期限: {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 ml-2">
+                            {showDatePicker === task.id ? (
+                              <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
+                            ) : (
+                              <button onClick={() => setShowDatePicker(task.id)} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "longTerm" && (
+                <div>
+                  <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-3">
+                    長期タスク <span className="font-normal text-purple-400">({futureTasks.longTerm.length}件)</span>
+                  </h2>
+                  {futureTasks.longTerm.length === 0 ? (
+                    <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">長期タスクがここに表示されます</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {futureTasks.longTerm.map((task) => (
+                        <div key={task.id} className="flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
+                          <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-purple-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-purple-800 font-medium leading-snug">{task.title}</p>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <span className="text-xs text-purple-500 bg-purple-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                              <span className="text-xs text-purple-600 bg-purple-200 rounded px-2 py-0.5 font-medium">
+                                期限: {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 ml-2">
+                            {showDatePicker === task.id ? (
+                              <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
+                            ) : (
+                              <button onClick={() => setShowDatePicker(task.id)} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "noDeadline" && (
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                    期限なしタスク <span className="font-normal text-gray-400">({futureTasks.noDeadline.length}件)</span>
+                  </h2>
+                  {futureTasks.noDeadline.length === 0 ? (
+                    <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">期限なしのタスクがここに表示されます</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {futureTasks.noDeadline.map((task) => (
+                        <div key={task.id} className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
+                          <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-gray-800 font-medium leading-snug">{task.title}</p>
+                            <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                          </div>
+                          <div className="flex-shrink-0 ml-2">
+                            {showDatePicker === task.id ? (
+                              <input type="date" defaultValue={new Date().toISOString().split('T')[0]} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
+                            ) : (
+                              <button onClick={() => setShowDatePicker(task.id)} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* デスクトップ: 3カラム並列 */}
-            <div className="hidden lg:flex flex-row gap-6">
+            {/* デスクトップ: 7カラム並列 */}
+            <div className="hidden lg:grid grid-cols-7 gap-4">
               {/* 期限切れカラム */}
-              <div className="flex-1">
+              <div>
                 <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
                   期限切れタスク{" "}
                   <span className="font-normal text-red-400">
@@ -464,7 +619,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               </div>
 
               {/* 未完了カラム */}
-              <div className="flex-1">
+              <div>
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                   本日の未完了タスク{" "}
                   <span className="font-normal text-gray-400">
@@ -533,7 +688,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               </div>
 
               {/* 完了カラム */}
-              <div className="flex-1">
+              <div>
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                   完了したタスク{" "}
                   <span className="font-normal text-gray-400">
@@ -585,6 +740,277 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <span className="inline-block mt-1 text-xs text-gray-400 bg-green-100 rounded px-2 py-0.5">
                             {task.listTitle}
                           </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 一週間以内カラム */}
+              <div>
+                <h2 className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-3">
+                  一週間以内{" "}
+                  <span className="font-normal text-blue-400">
+                    ({futureTasks.withinWeek.length}件)
+                  </span>
+                </h2>
+                {futureTasks.withinWeek.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                    一週間以内のタスクがここに表示されます
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {futureTasks.withinWeek.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm"
+                        style={
+                          completing.has(task.id)
+                            ? { animation: "fadeOut 300ms forwards" }
+                            : undefined
+                        }
+                      >
+                        <button
+                          onClick={() => completeTask(task)}
+                          disabled={completing.has(task.id)}
+                          className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-blue-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="完了にする"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-blue-800 font-medium leading-snug text-sm">
+                            {task.title}
+                          </p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className="text-xs text-blue-500 bg-blue-100 rounded px-2 py-0.5">
+                              {task.listTitle}
+                            </span>
+                            <span className="text-xs text-blue-600 bg-blue-200 rounded px-2 py-0.5 font-medium">
+                              {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 ml-2">
+                          {showDatePicker === task.id ? (
+                            <input
+                              type="date"
+                              defaultValue={task.due.slice(0, 10)}
+                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
+                              onBlur={() => setShowDatePicker(null)}
+                              className="text-xs p-1 border rounded"
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setShowDatePicker(task.id)}
+                              disabled={changingDue.has(task.id)}
+                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 一ヶ月以内カラム */}
+              <div>
+                <h2 className="text-sm font-semibold text-orange-600 uppercase tracking-wide mb-3">
+                  一ヶ月以内{" "}
+                  <span className="font-normal text-orange-400">
+                    ({futureTasks.withinMonth.length}件)
+                  </span>
+                </h2>
+                {futureTasks.withinMonth.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                    一ヶ月以内のタスクがここに表示されます
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {futureTasks.withinMonth.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 shadow-sm"
+                        style={
+                          completing.has(task.id)
+                            ? { animation: "fadeOut 300ms forwards" }
+                            : undefined
+                        }
+                      >
+                        <button
+                          onClick={() => completeTask(task)}
+                          disabled={completing.has(task.id)}
+                          className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-orange-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="完了にする"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-orange-800 font-medium leading-snug text-sm">
+                            {task.title}
+                          </p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className="text-xs text-orange-500 bg-orange-100 rounded px-2 py-0.5">
+                              {task.listTitle}
+                            </span>
+                            <span className="text-xs text-orange-600 bg-orange-200 rounded px-2 py-0.5 font-medium">
+                              {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 ml-2">
+                          {showDatePicker === task.id ? (
+                            <input
+                              type="date"
+                              defaultValue={task.due.slice(0, 10)}
+                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
+                              onBlur={() => setShowDatePicker(null)}
+                              className="text-xs p-1 border rounded"
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setShowDatePicker(task.id)}
+                              disabled={changingDue.has(task.id)}
+                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 長期カラム */}
+              <div>
+                <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-3">
+                  長期{" "}
+                  <span className="font-normal text-purple-400">
+                    ({futureTasks.longTerm.length}件)
+                  </span>
+                </h2>
+                {futureTasks.longTerm.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                    長期タスクがここに表示されます
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {futureTasks.longTerm.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 shadow-sm"
+                        style={
+                          completing.has(task.id)
+                            ? { animation: "fadeOut 300ms forwards" }
+                            : undefined
+                        }
+                      >
+                        <button
+                          onClick={() => completeTask(task)}
+                          disabled={completing.has(task.id)}
+                          className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-purple-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="完了にする"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-purple-800 font-medium leading-snug text-sm">
+                            {task.title}
+                          </p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className="text-xs text-purple-500 bg-purple-100 rounded px-2 py-0.5">
+                              {task.listTitle}
+                            </span>
+                            <span className="text-xs text-purple-600 bg-purple-200 rounded px-2 py-0.5 font-medium">
+                              {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0 ml-2">
+                          {showDatePicker === task.id ? (
+                            <input
+                              type="date"
+                              defaultValue={task.due.slice(0, 10)}
+                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
+                              onBlur={() => setShowDatePicker(null)}
+                              className="text-xs p-1 border rounded"
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setShowDatePicker(task.id)}
+                              disabled={changingDue.has(task.id)}
+                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 期限なしカラム */}
+              <div>
+                <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                  期限なし{" "}
+                  <span className="font-normal text-gray-400">
+                    ({futureTasks.noDeadline.length}件)
+                  </span>
+                </h2>
+                {futureTasks.noDeadline.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                    期限なしのタスクがここに表示されます
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {futureTasks.noDeadline.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
+                        style={
+                          completing.has(task.id)
+                            ? { animation: "fadeOut 300ms forwards" }
+                            : undefined
+                        }
+                      >
+                        <button
+                          onClick={() => completeTask(task)}
+                          disabled={completing.has(task.id)}
+                          className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="完了にする"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-gray-800 font-medium leading-snug text-sm">
+                            {task.title}
+                          </p>
+                          <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
+                            {task.listTitle}
+                          </span>
+                        </div>
+                        <div className="flex-shrink-0 ml-2">
+                          {showDatePicker === task.id ? (
+                            <input
+                              type="date"
+                              defaultValue={new Date().toISOString().split('T')[0]}
+                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
+                              onBlur={() => setShowDatePicker(null)}
+                              className="text-xs p-1 border rounded"
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setShowDatePicker(task.id)}
+                              disabled={changingDue.has(task.id)}
+                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
