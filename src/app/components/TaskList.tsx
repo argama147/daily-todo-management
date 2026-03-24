@@ -21,6 +21,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [uncompleting, setUncompleting] = useState<Set<string>>(new Set());
   const [newlyCompleted, setNewlyCompleted] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  type TabKey = "expired" | "today" | "completed";
+  const [activeTab, setActiveTab] = useState<TabKey>("today");
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -198,172 +200,291 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         {loading && incompleteTasks.length === 0 && expiredTasks.length === 0 && completedTasks.length === 0 ? (
           <div className="text-center py-16 text-gray-400">タスクを取得中...</div>
         ) : (
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* 期限切れカラム */}
-            <div className="flex-1">
-              <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
-                期限切れタスク{" "}
-                <span className="font-normal text-red-400">
-                  ({expiredTasks.length}件)
-                </span>
-              </h2>
-              {expiredTasks.length === 0 ? (
-                <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
-                  期限切れタスクがここに表示されます
+          <>
+            {/* モバイルのみ: タブ */}
+            <div className="flex lg:hidden border-b border-gray-200 mb-4">
+              {[
+                { key: "expired" as TabKey, label: "期限切れ", count: expiredTasks.length },
+                { key: "today" as TabKey, label: "本日", count: incompleteTasks.length },
+                { key: "completed" as TabKey, label: "完了", count: completedTasks.length },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab.key
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500"
+                  }`}
+                >
+                  {tab.label}
+                  <span className="ml-1 text-xs">({tab.count})</span>
+                </button>
+              ))}
+            </div>
+
+            {/* モバイル: アクティブタブのみ表示 */}
+            <div className="lg:hidden">
+              {activeTab === "expired" && (
+                <div>
+                  <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
+                    期限切れタスク <span className="font-normal text-red-400">({expiredTasks.length}件)</span>
+                  </h2>
+                  {expiredTasks.length === 0 ? (
+                    <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                      期限切れタスクがここに表示されます
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {expiredTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 shadow-sm"
+                          style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}
+                        >
+                          <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-red-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-red-800 font-medium leading-snug">{task.title}</p>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <span className="text-xs text-red-500 bg-red-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                              <span className="text-xs text-red-600 bg-red-200 rounded px-2 py-0.5 font-medium">
+                                期限: {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                                ({(() => { const t = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }); const d = Math.ceil((new Date(t).getTime() - new Date(task.due.slice(0, 10)).getTime()) / 86400000); return `${d}日経過`; })()})
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {expiredTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 shadow-sm"
-                      style={
-                        completing.has(task.id)
-                          ? { animation: "fadeOut 300ms forwards" }
-                          : undefined
-                      }
-                    >
-                      <button
-                        onClick={() => completeTask(task)}
-                        disabled={completing.has(task.id)}
-                        className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-red-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="完了にする"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-red-800 font-medium leading-snug">
-                          {task.title}
-                        </p>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          <span className="text-xs text-red-500 bg-red-100 rounded px-2 py-0.5">
+              )}
+              {activeTab === "today" && (
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                    本日の未完了タスク <span className="font-normal text-gray-400">({incompleteTasks.length}件)</span>
+                  </h2>
+                  {incompleteTasks.length === 0 && expiredTasks.length === 0 && completedTasks.length === 0 ? (
+                    <div className="text-center py-12"><div className="text-4xl mb-3">🎉</div><p className="text-gray-500">今日期限のタスクはありません</p></div>
+                  ) : incompleteTasks.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400 text-sm">すべて完了しました！</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {incompleteTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
+                          style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}
+                        >
+                          <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-gray-800 font-medium leading-snug">{task.title}</p>
+                            <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "completed" && (
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                    完了したタスク <span className="font-normal text-gray-400">({completedTasks.length}件)</span>
+                  </h2>
+                  {completedTasks.length === 0 ? (
+                    <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">完了したタスクがここに表示されます</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {completedTasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 shadow-sm opacity-80"
+                          style={newlyCompleted.has(task.id) ? { animation: "slideInFromTop 300ms ease-out" } : uncompleting.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}
+                        >
+                          <button onClick={() => uncompleteTask(task)} disabled={uncompleting.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-green-500 hover:bg-gray-300 hover:border-2 hover:border-gray-400 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="未完了にする">
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-gray-500 font-medium leading-snug line-through">{task.title}</p>
+                            <span className="inline-block mt-1 text-xs text-gray-400 bg-green-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* デスクトップ: 3カラム並列 */}
+            <div className="hidden lg:flex flex-row gap-6">
+              {/* 期限切れカラム */}
+              <div className="flex-1">
+                <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
+                  期限切れタスク{" "}
+                  <span className="font-normal text-red-400">
+                    ({expiredTasks.length}件)
+                  </span>
+                </h2>
+                {expiredTasks.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                    期限切れタスクがここに表示されます
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {expiredTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 shadow-sm"
+                        style={
+                          completing.has(task.id)
+                            ? { animation: "fadeOut 300ms forwards" }
+                            : undefined
+                        }
+                      >
+                        <button
+                          onClick={() => completeTask(task)}
+                          disabled={completing.has(task.id)}
+                          className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-red-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="完了にする"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-red-800 font-medium leading-snug">
+                            {task.title}
+                          </p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className="text-xs text-red-500 bg-red-100 rounded px-2 py-0.5">
+                              {task.listTitle}
+                            </span>
+                            <span className="text-xs text-red-600 bg-red-200 rounded px-2 py-0.5 font-medium">
+                              期限: {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                              ({(() => {
+                                const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+                                const taskDate = task.due.slice(0, 10);
+                                const diffTime = new Date(todayStr).getTime() - new Date(taskDate).getTime();
+                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                return `${diffDays}日経過`;
+                              })()})
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 未完了カラム */}
+              <div className="flex-1">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  本日の未完了タスク{" "}
+                  <span className="font-normal text-gray-400">
+                    ({incompleteTasks.length}件)
+                  </span>
+                </h2>
+                {incompleteTasks.length === 0 && expiredTasks.length === 0 && completedTasks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-4xl mb-3">🎉</div>
+                    <p className="text-gray-500">今日期限のタスクはありません</p>
+                  </div>
+                ) : incompleteTasks.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 text-sm">
+                    すべて完了しました！
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {incompleteTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
+                        style={
+                          completing.has(task.id)
+                            ? { animation: "fadeOut 300ms forwards" }
+                            : undefined
+                        }
+                      >
+                        <button
+                          onClick={() => completeTask(task)}
+                          disabled={completing.has(task.id)}
+                          className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="完了にする"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-gray-800 font-medium leading-snug">
+                            {task.title}
+                          </p>
+                          <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
                             {task.listTitle}
-                          </span>
-                          <span className="text-xs text-red-600 bg-red-200 rounded px-2 py-0.5 font-medium">
-                            期限: {new Date(task.due).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
-                            ({(() => {
-                              const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-                              const taskDate = task.due.slice(0, 10);
-                              const diffTime = new Date(today).getTime() - new Date(taskDate).getTime();
-                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                              return `${diffDays}日経過`;
-                            })()})
                           </span>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            {/* 未完了カラム */}
-            <div className="flex-1">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                本日の未完了タスク{" "}
-                <span className="font-normal text-gray-400">
-                  ({incompleteTasks.length}件)
-                </span>
-              </h2>
-              {incompleteTasks.length === 0 && expiredTasks.length === 0 && completedTasks.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-3">🎉</div>
-                  <p className="text-gray-500">今日期限のタスクはありません</p>
-                </div>
-              ) : incompleteTasks.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 text-sm">
-                  すべて完了しました！
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {incompleteTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
-                      style={
-                        completing.has(task.id)
-                          ? { animation: "fadeOut 300ms forwards" }
-                          : undefined
-                      }
-                    >
-                      <button
-                        onClick={() => completeTask(task)}
-                        disabled={completing.has(task.id)}
-                        className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="完了にする"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-gray-800 font-medium leading-snug">
-                          {task.title}
-                        </p>
-                        <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
-                          {task.listTitle}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 完了カラム */}
-            <div className="flex-1">
-              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                完了したタスク{" "}
-                <span className="font-normal text-gray-400">
-                  ({completedTasks.length}件)
-                </span>
-              </h2>
-              {completedTasks.length === 0 ? (
-                <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
-                  完了したタスクがここに表示されます
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {completedTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 shadow-sm opacity-80"
-                      style={
-                        newlyCompleted.has(task.id)
-                          ? { animation: "slideInFromTop 300ms ease-out" }
-                          : uncompleting.has(task.id)
-                          ? { animation: "fadeOut 300ms forwards" }
-                          : undefined
-                      }
-                    >
-                      <button
-                        onClick={() => uncompleteTask(task)}
-                        disabled={uncompleting.has(task.id)}
-                        className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-green-500 hover:bg-gray-300 hover:border-2 hover:border-gray-400 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="未完了にする"
+              {/* 完了カラム */}
+              <div className="flex-1">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  完了したタスク{" "}
+                  <span className="font-normal text-gray-400">
+                    ({completedTasks.length}件)
+                  </span>
+                </h2>
+                {completedTasks.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                    完了したタスクがここに表示されます
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {completedTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 shadow-sm opacity-80"
+                        style={
+                          newlyCompleted.has(task.id)
+                            ? { animation: "slideInFromTop 300ms ease-out" }
+                            : uncompleting.has(task.id)
+                            ? { animation: "fadeOut 300ms forwards" }
+                            : undefined
+                        }
                       >
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={3}
+                        <button
+                          onClick={() => uncompleteTask(task)}
+                          disabled={uncompleting.has(task.id)}
+                          className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-green-500 hover:bg-gray-300 hover:border-2 hover:border-gray-400 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="未完了にする"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-gray-500 font-medium leading-snug line-through">
-                          {task.title}
-                        </p>
-                        <span className="inline-block mt-1 text-xs text-gray-400 bg-green-100 rounded px-2 py-0.5">
-                          {task.listTitle}
-                        </span>
+                          <svg
+                            className="w-3 h-3 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={3}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-gray-500 font-medium leading-snug line-through">
+                            {task.title}
+                          </p>
+                          <span className="inline-block mt-1 text-xs text-gray-400 bg-green-100 rounded px-2 py-0.5">
+                            {task.listTitle}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </main>
     </div>
