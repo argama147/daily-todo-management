@@ -4,6 +4,8 @@ import { signOut } from "next-auth/react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Task } from "@/lib/tasks";
 import type { User } from "next-auth";
+import { getSettings, type AppSettings } from "@/lib/settings";
+import SettingsModal from "./SettingsModal";
 
 type Props = {
   initialTasks: Task[];
@@ -37,6 +39,19 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [activeTab, setActiveTab] = useState<TabKey>("today");
   const [changingDue, setChangingDue] = useState<Set<string>>(new Set());
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>({
+    showUserName: true,
+    visibleLists: {
+      expired: true,
+      today: true,
+      completed: true,
+      withinWeek: true,
+      withinMonth: true,
+      longTerm: true,
+      noDeadline: true,
+    },
+  });
   
   // スワイプ関連の状態
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -46,6 +61,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   
   // タブの順序定義
   const tabOrder: TabKey[] = ["expired", "today", "completed", "withinWeek", "withinMonth", "longTerm", "noDeadline"];
+
+  // 設定の読み込み
+  useEffect(() => {
+    setSettings(getSettings());
+  }, []);
+
+  // 設定変更時のリフレッシュ
+  const refreshSettings = () => {
+    setSettings(getSettings());
+  };
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -275,13 +300,32 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={() => setShowSettings(true)}
+              className="lg:hidden flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="設定"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="hidden lg:flex items-center gap-2 px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              設定
+            </button>
+            <button
               onClick={fetchTasks}
               disabled={loading}
               className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
             >
               {loading ? "更新中..." : "更新"}
             </button>
-            {user && (
+            {user && settings.showUserName && (
               <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-lg">
                 {user.image && (
                   <img
@@ -326,20 +370,22 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 { key: "withinMonth" as TabKey, label: "一ヶ月", count: futureTasks.withinMonth.length },
                 { key: "longTerm" as TabKey, label: "長期", count: futureTasks.longTerm.length },
                 { key: "noDeadline" as TabKey, label: "期限なし", count: futureTasks.noDeadline.length },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex-shrink-0 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.key
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500"
-                  }`}
-                >
-                  {tab.label}
-                  <span className="ml-1 text-xs">({tab.count})</span>
-                </button>
-              ))}
+              ]
+                .filter((tab) => settings.visibleLists[tab.key])
+                .map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex-shrink-0 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === tab.key
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500"
+                    }`}
+                  >
+                    {tab.label}
+                    <span className="ml-1 text-xs">({tab.count})</span>
+                  </button>
+                ))}
             </div>
 
             {/* モバイル: アクティブタブのみ表示 */}
@@ -350,7 +396,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              {activeTab === "expired" && (
+              {activeTab === "expired" && settings.visibleLists.expired && (
                 <div>
                   <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
                     期限切れタスク <span className="font-normal text-red-400">({expiredTasks.length}件)</span>
@@ -405,7 +451,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   )}
                 </div>
               )}
-              {activeTab === "today" && (
+              {activeTab === "today" && settings.visibleLists.today && (
                 <div>
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                     本日の未完了タスク <span className="font-normal text-gray-400">({incompleteTasks.length}件)</span>
@@ -454,7 +500,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   )}
                 </div>
               )}
-              {activeTab === "completed" && (
+              {activeTab === "completed" && settings.visibleLists.completed && (
                 <div>
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                     完了したタスク <span className="font-normal text-gray-400">({completedTasks.length}件)</span>
@@ -482,7 +528,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   )}
                 </div>
               )}
-              {activeTab === "withinWeek" && (
+              {activeTab === "withinWeek" && settings.visibleLists.withinWeek && (
                 <div>
                   <h2 className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-3">
                     一週間以内のタスク <span className="font-normal text-blue-400">({futureTasks.withinWeek.length}件)</span>
@@ -518,7 +564,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   )}
                 </div>
               )}
-              {activeTab === "withinMonth" && (
+              {activeTab === "withinMonth" && settings.visibleLists.withinMonth && (
                 <div>
                   <h2 className="text-sm font-semibold text-orange-600 uppercase tracking-wide mb-3">
                     一ヶ月以内のタスク <span className="font-normal text-orange-400">({futureTasks.withinMonth.length}件)</span>
@@ -554,7 +600,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   )}
                 </div>
               )}
-              {activeTab === "longTerm" && (
+              {activeTab === "longTerm" && settings.visibleLists.longTerm && (
                 <div>
                   <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-3">
                     長期タスク <span className="font-normal text-purple-400">({futureTasks.longTerm.length}件)</span>
@@ -590,7 +636,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   )}
                 </div>
               )}
-              {activeTab === "noDeadline" && (
+              {activeTab === "noDeadline" && settings.visibleLists.noDeadline && (
                 <div>
                   <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
                     期限なしタスク <span className="font-normal text-gray-400">({futureTasks.noDeadline.length}件)</span>
@@ -623,9 +669,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               )}
             </div>
 
-            {/* デスクトップ: 7カラム並列 */}
-            <div className="hidden lg:grid grid-cols-7 gap-4" style={{ gridTemplateColumns: "repeat(7, minmax(220px, 1fr))" }}>
+            {/* デスクトップ: 動的カラム数 */}
+            <div className={`hidden lg:grid gap-4`} style={{ 
+              gridTemplateColumns: `repeat(${Object.values(settings.visibleLists).filter(Boolean).length || 1}, minmax(220px, 1fr))` 
+            }}>
               {/* 期限切れカラム */}
+              {settings.visibleLists.expired && (
               <div>
                 <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
                   期限切れタスク{" "}
@@ -701,8 +750,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   </div>
                 )}
               </div>
+              )}
 
               {/* 未完了カラム */}
+              {settings.visibleLists.today && (
               <div>
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                   本日の未完了タスク{" "}
@@ -771,8 +822,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   </div>
                 )}
               </div>
+              )}
 
               {/* 完了カラム */}
+              {settings.visibleLists.completed && (
               <div>
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                   完了したタスク{" "}
@@ -831,8 +884,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   </div>
                 )}
               </div>
+              )}
 
               {/* 一週間以内カラム */}
+              {settings.visibleLists.withinWeek && (
               <div>
                 <h2 className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-3">
                   一週間以内{" "}
@@ -901,8 +956,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   </div>
                 )}
               </div>
+              )}
 
               {/* 一ヶ月以内カラム */}
+              {settings.visibleLists.withinMonth && (
               <div>
                 <h2 className="text-sm font-semibold text-orange-600 uppercase tracking-wide mb-3">
                   一ヶ月以内{" "}
@@ -971,8 +1028,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   </div>
                 )}
               </div>
+              )}
 
               {/* 長期カラム */}
+              {settings.visibleLists.longTerm && (
               <div>
                 <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-3">
                   長期{" "}
@@ -1041,8 +1100,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   </div>
                 )}
               </div>
+              )}
 
               {/* 期限なしカラム */}
+              {settings.visibleLists.noDeadline && (
               <div>
                 <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
                   期限なし{" "}
@@ -1106,10 +1167,19 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   </div>
                 )}
               </div>
+              )}
             </div>
           </>
         )}
       </main>
+      
+      <SettingsModal 
+        isOpen={showSettings} 
+        onClose={() => {
+          setShowSettings(false);
+          refreshSettings();
+        }} 
+      />
     </div>
   );
 }
