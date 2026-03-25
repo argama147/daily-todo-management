@@ -543,7 +543,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             </div>
 
             {/* デスクトップ: 7カラム並列 */}
-            <div className="hidden lg:grid grid-cols-7 gap-4">
+            <div className="hidden lg:grid grid-cols-7 gap-4" style={{ gridTemplateColumns: "repeat(7, minmax(220px, 1fr))" }}>
               {/* 期限切れカラム */}
               <div>
                 <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
