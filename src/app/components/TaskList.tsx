@@ -782,7 +782,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-blue-800 font-medium leading-snug text-sm break-words">
+                          <p className="text-blue-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -852,7 +852,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-orange-800 font-medium leading-snug text-sm break-words">
+                          <p className="text-orange-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -922,7 +922,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-purple-800 font-medium leading-snug text-sm break-words">
+                          <p className="text-purple-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -992,7 +992,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-gray-800 font-medium leading-snug text-sm break-words">
+                          <p className="text-gray-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
                           <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
