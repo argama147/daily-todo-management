@@ -288,7 +288,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                         >
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-red-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-red-800 font-medium leading-snug">{task.title}</p>
+                            <p className="text-red-800 font-medium leading-snug break-words">{task.title}</p>
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className="text-xs text-red-500 bg-red-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               <span className="text-xs text-red-600 bg-red-200 rounded px-2 py-0.5 font-medium">
@@ -342,7 +342,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                         >
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-gray-800 font-medium leading-snug">{task.title}</p>
+                            <p className="text-gray-800 font-medium leading-snug break-words">{task.title}</p>
                             <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
                           </div>
                           <div className="flex-shrink-0 ml-2">
@@ -390,7 +390,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                           </button>
                           <div className="flex-1 min-w-0">
-                            <p className="text-gray-500 font-medium leading-snug line-through">{task.title}</p>
+                            <p className="text-gray-500 font-medium leading-snug line-through break-words">{task.title}</p>
                             <span className="inline-block mt-1 text-xs text-gray-400 bg-green-100 rounded px-2 py-0.5">{task.listTitle}</span>
                           </div>
                         </div>
@@ -412,7 +412,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                         <div key={task.id} className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-blue-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-blue-800 font-medium leading-snug">{task.title}</p>
+                            <p className="text-blue-800 font-medium leading-snug break-words">{task.title}</p>
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className="text-xs text-blue-500 bg-blue-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               <span className="text-xs text-blue-600 bg-blue-200 rounded px-2 py-0.5 font-medium">
@@ -448,7 +448,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                         <div key={task.id} className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-orange-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-orange-800 font-medium leading-snug">{task.title}</p>
+                            <p className="text-orange-800 font-medium leading-snug break-words">{task.title}</p>
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className="text-xs text-orange-500 bg-orange-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               <span className="text-xs text-orange-600 bg-orange-200 rounded px-2 py-0.5 font-medium">
@@ -484,7 +484,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                         <div key={task.id} className="flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-purple-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-purple-800 font-medium leading-snug">{task.title}</p>
+                            <p className="text-purple-800 font-medium leading-snug break-words">{task.title}</p>
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className="text-xs text-purple-500 bg-purple-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               <span className="text-xs text-purple-600 bg-purple-200 rounded px-2 py-0.5 font-medium">
@@ -520,7 +520,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                         <div key={task.id} className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-gray-800 font-medium leading-snug">{task.title}</p>
+                            <p className="text-gray-800 font-medium leading-snug break-words">{task.title}</p>
                             <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
                           </div>
                           <div className="flex-shrink-0 ml-2">
@@ -573,7 +573,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-red-800 font-medium leading-snug">
+                          <p className="text-red-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -654,7 +654,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-gray-800 font-medium leading-snug">
+                          <p className="text-gray-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
                           <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
@@ -734,7 +734,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           </svg>
                         </button>
                         <div className="flex-1 min-w-0">
-                          <p className="text-gray-500 font-medium leading-snug line-through">
+                          <p className="text-gray-500 font-medium leading-snug line-through break-words">
                             {task.title}
                           </p>
                           <span className="inline-block mt-1 text-xs text-gray-400 bg-green-100 rounded px-2 py-0.5">
@@ -778,7 +778,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-blue-800 font-medium leading-snug text-sm">
+                          <p className="text-blue-800 font-medium leading-snug text-sm break-words">
                             {task.title}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -847,7 +847,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-orange-800 font-medium leading-snug text-sm">
+                          <p className="text-orange-800 font-medium leading-snug text-sm break-words">
                             {task.title}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -916,7 +916,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-purple-800 font-medium leading-snug text-sm">
+                          <p className="text-purple-800 font-medium leading-snug text-sm break-words">
                             {task.title}
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -985,7 +985,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           aria-label="完了にする"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-gray-800 font-medium leading-snug text-sm">
+                          <p className="text-gray-800 font-medium leading-snug text-sm break-words">
                             {task.title}
                           </p>
                           <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
