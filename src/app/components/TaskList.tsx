@@ -311,9 +311,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               <button
                                 onClick={() => setShowDatePicker(task.id)}
                                 disabled={changingDue.has(task.id)}
-                                className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="期限変更"
                               >
-                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                                {changingDue.has(task.id) ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -359,9 +360,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               <button
                                 onClick={() => setShowDatePicker(task.id)}
                                 disabled={changingDue.has(task.id)}
-                                className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="期限変更"
                               >
-                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                                {changingDue.has(task.id) ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -425,7 +427,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
                               <button onClick={() => setShowDatePicker(task.id)} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                                {changingDue.has(task.id) ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -461,7 +463,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
                               <button onClick={() => setShowDatePicker(task.id)} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                                {changingDue.has(task.id) ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -497,7 +499,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
                               <button onClick={() => setShowDatePicker(task.id)} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                                {changingDue.has(task.id) ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -528,7 +530,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               <input type="date" defaultValue={new Date().toISOString().split('T')[0]} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
                               <button onClick={() => setShowDatePicker(task.id)} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                                {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                                {changingDue.has(task.id) ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -606,9 +608,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             <button
                               onClick={() => setShowDatePicker(task.id)}
                               disabled={changingDue.has(task.id)}
-                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="期限変更"
                             >
-                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              {changingDue.has(task.id) ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -675,9 +678,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             <button
                               onClick={() => setShowDatePicker(task.id)}
                               disabled={changingDue.has(task.id)}
-                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="期限変更"
                             >
-                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              {changingDue.has(task.id) ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -804,9 +808,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             <button
                               onClick={() => setShowDatePicker(task.id)}
                               disabled={changingDue.has(task.id)}
-                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="期限変更"
                             >
-                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              {changingDue.has(task.id) ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -873,9 +878,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             <button
                               onClick={() => setShowDatePicker(task.id)}
                               disabled={changingDue.has(task.id)}
-                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="期限変更"
                             >
-                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              {changingDue.has(task.id) ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -942,9 +948,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             <button
                               onClick={() => setShowDatePicker(task.id)}
                               disabled={changingDue.has(task.id)}
-                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="期限変更"
                             >
-                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              {changingDue.has(task.id) ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -1006,9 +1013,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             <button
                               onClick={() => setShowDatePicker(task.id)}
                               disabled={changingDue.has(task.id)}
-                              className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="期限変更"
                             >
-                              {changingDue.has(task.id) ? "変更中..." : "期限変更"}
+                              {changingDue.has(task.id) ? "..." : "︙"}
                             </button>
                           )}
                         </div>
