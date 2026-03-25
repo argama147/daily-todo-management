@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Task } from "@/lib/tasks";
 import type { User } from "next-auth";
 
@@ -37,6 +37,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [activeTab, setActiveTab] = useState<TabKey>("today");
   const [changingDue, setChangingDue] = useState<Set<string>>(new Set());
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
+  
+  // スワイプ関連の状態
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // タブの順序定義
+  const tabOrder: TabKey[] = ["expired", "today", "completed", "withinWeek", "withinMonth", "longTerm", "noDeadline"];
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -183,6 +192,72 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     }
   };
 
+  // モバイル端末検出
+  const isMobile = () => {
+    if (typeof window === 'undefined') return false;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           window.innerWidth <= 768;
+  };
+
+  // スワイプイベントハンドラー
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isMobile()) return;
+    
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+    setTouchEnd(null);
+    setIsSwiping(false);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isMobile() || !touchStart) return;
+    
+    const touch = e.touches[0];
+    setTouchEnd({ x: touch.clientX, y: touch.clientY });
+    
+    // 水平方向のスワイプ距離をチェック
+    const deltaX = Math.abs(touch.clientX - touchStart.x);
+    const deltaY = Math.abs(touch.clientY - touchStart.y);
+    
+    // 水平スワイプが垂直スワイプより大きい場合のみスワイプとして認識
+    if (deltaX > 20 && deltaX > deltaY) {
+      setIsSwiping(true);
+      e.preventDefault(); // スクロールを防ぐ
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isMobile() || !touchStart || !touchEnd || !isSwiping) {
+      setTouchStart(null);
+      setTouchEnd(null);
+      setIsSwiping(false);
+      return;
+    }
+
+    const deltaX = touchEnd.x - touchStart.x;
+    const deltaY = Math.abs(touchEnd.y - touchStart.y);
+    
+    // 最小スワイプ距離と垂直方向の許容量をチェック
+    const minSwipeDistance = 50;
+    const maxVerticalDistance = 100;
+    
+    if (Math.abs(deltaX) > minSwipeDistance && deltaY < maxVerticalDistance) {
+      const currentIndex = tabOrder.indexOf(activeTab);
+      
+      if (deltaX > 0 && currentIndex > 0) {
+        // 右スワイプ：前のタブに移動
+        setActiveTab(tabOrder[currentIndex - 1]);
+      } else if (deltaX < 0 && currentIndex < tabOrder.length - 1) {
+        // 左スワイプ：次のタブに移動
+        setActiveTab(tabOrder[currentIndex + 1]);
+      }
+    }
+    
+    setTouchStart(null);
+    setTouchEnd(null);
+    setIsSwiping(false);
+  };
+
   const today = new Date().toLocaleDateString("ja-JP", {
     year: "numeric",
     month: "long",
@@ -268,7 +343,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             </div>
 
             {/* モバイル: アクティブタブのみ表示 */}
-            <div className="lg:hidden">
+            <div 
+              ref={containerRef}
+              className="lg:hidden"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
               {activeTab === "expired" && (
                 <div>
                   <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
