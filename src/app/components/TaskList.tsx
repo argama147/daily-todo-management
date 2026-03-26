@@ -388,7 +388,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-6 overflow-hidden">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
@@ -709,8 +709,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             </div>
 
             {/* デスクトップ: 動的カラム数 */}
-            <div className={`hidden lg:grid gap-4`} style={{ 
-              gridTemplateColumns: `repeat(${Object.values(settings.visibleLists).filter(Boolean).length || 1}, minmax(220px, 1fr))` 
+            <div className={`hidden lg:grid gap-4 overflow-x-auto`} style={{ 
+              gridTemplateColumns: `repeat(${Object.values(settings.visibleLists).filter(Boolean).length || 1}, minmax(280px, 1fr))` 
             }}>
               {/* 期限切れカラム */}
               {settings.visibleLists.expired && (
