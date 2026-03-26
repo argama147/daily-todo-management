@@ -420,7 +420,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-4 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="w-full mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-800">今日のタスク</h1>
             <p className="text-sm text-gray-500">{today}</p>
@@ -476,7 +476,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 overflow-hidden">
+      <main className="w-full mx-auto px-4 py-6 overflow-hidden">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
