@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { getSettings, saveSettings, type AppSettings } from "@/lib/settings";
+import type { Task } from "@/lib/tasks";
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  allTasks?: Task[];
 }
 
-export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose, allTasks = [] }: SettingsModalProps) {
   const [settings, setSettings] = useState<AppSettings>({
     showUserName: true,
     visibleLists: {
@@ -20,6 +22,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       longTerm: true,
       noDeadline: true,
     },
+    visibleCategories: {},
   });
 
   useEffect(() => {
@@ -49,6 +52,21 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       },
     }));
   };
+
+  const handleToggleCategory = (categoryKey: string) => {
+    setSettings(prev => ({
+      ...prev,
+      visibleCategories: {
+        ...prev.visibleCategories,
+        [categoryKey]: !prev.visibleCategories[categoryKey],
+      },
+    }));
+  };
+
+  // 利用可能なカテゴリー一覧を取得
+  const availableCategories = Array.from(
+    new Set(allTasks.map(task => task.listTitle).filter(Boolean))
+  ).sort();
 
   if (!isOpen) return null;
 
@@ -114,6 +132,29 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               ))}
             </div>
           </div>
+
+          {/* タスクカテゴリー表示設定 */}
+          {availableCategories.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">表示するタスクの種別</h3>
+              <div className="space-y-3">
+                {availableCategories.map((category) => (
+                  <div key={category} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`category-${category}`}
+                      checked={settings.visibleCategories[category] !== false}
+                      onChange={() => handleToggleCategory(category)}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-600">
+                      {category}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 p-4 border-t border-gray-200">

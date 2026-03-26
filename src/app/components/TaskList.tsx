@@ -4,7 +4,7 @@ import { signOut } from "next-auth/react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Task } from "@/lib/tasks";
 import type { User } from "next-auth";
-import { getSettings, type AppSettings } from "@/lib/settings";
+import { getSettings, updateCategoriesFromTasks, type AppSettings } from "@/lib/settings";
 import SettingsModal from "./SettingsModal";
 
 type Props = {
@@ -51,6 +51,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       longTerm: true,
       noDeadline: true,
     },
+    visibleCategories: {},
   });
   
   // スワイプ関連の状態
@@ -67,9 +68,47 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     setSettings(getSettings());
   }, []);
 
+  // タスクカテゴリーの設定を更新
+  useEffect(() => {
+    const allTasks = [
+      ...incompleteTasks,
+      ...expiredTasks,
+      ...completedTasks,
+      ...futureTasks.withinWeek,
+      ...futureTasks.withinMonth,
+      ...futureTasks.longTerm,
+      ...futureTasks.noDeadline,
+    ];
+    updateCategoriesFromTasks(allTasks);
+    setSettings(getSettings());
+  }, [incompleteTasks, expiredTasks, completedTasks, futureTasks]);
+
   // 設定変更時のリフレッシュ
   const refreshSettings = () => {
     setSettings(getSettings());
+  };
+
+  // タスクカテゴリーフィルタリング関数
+  const filterTasksByCategory = (tasks: Task[]) => {
+    return tasks.filter(task => {
+      // カテゴリー設定がない場合はすべて表示
+      if (Object.keys(settings.visibleCategories).length === 0) {
+        return true;
+      }
+      // カテゴリー設定がある場合は、明示的にfalseでない限り表示
+      return settings.visibleCategories[task.listTitle] !== false;
+    });
+  };
+
+  // フィルタリングされたタスクリスト
+  const filteredIncompleteTasks = filterTasksByCategory(incompleteTasks);
+  const filteredExpiredTasks = filterTasksByCategory(expiredTasks);
+  const filteredCompletedTasks = filterTasksByCategory(completedTasks);
+  const filteredFutureTasks = {
+    withinWeek: filterTasksByCategory(futureTasks.withinWeek),
+    withinMonth: filterTasksByCategory(futureTasks.withinMonth),
+    longTerm: filterTasksByCategory(futureTasks.longTerm),
+    noDeadline: filterTasksByCategory(futureTasks.noDeadline),
   };
 
   const fetchTasks = useCallback(async () => {
@@ -363,13 +402,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             {/* モバイルのみ: タブ */}
             <div className="flex lg:hidden border-b border-gray-200 mb-4 overflow-x-auto">
               {[
-                { key: "expired" as TabKey, label: "期限切れ", count: expiredTasks.length },
-                { key: "today" as TabKey, label: "本日", count: incompleteTasks.length },
-                { key: "completed" as TabKey, label: "完了", count: completedTasks.length },
-                { key: "withinWeek" as TabKey, label: "一週間", count: futureTasks.withinWeek.length },
-                { key: "withinMonth" as TabKey, label: "一ヶ月", count: futureTasks.withinMonth.length },
-                { key: "longTerm" as TabKey, label: "長期", count: futureTasks.longTerm.length },
-                { key: "noDeadline" as TabKey, label: "期限なし", count: futureTasks.noDeadline.length },
+                { key: "expired" as TabKey, label: "期限切れ", count: filteredExpiredTasks.length },
+                { key: "today" as TabKey, label: "本日", count: filteredIncompleteTasks.length },
+                { key: "completed" as TabKey, label: "完了", count: filteredCompletedTasks.length },
+                { key: "withinWeek" as TabKey, label: "一週間", count: filteredFutureTasks.withinWeek.length },
+                { key: "withinMonth" as TabKey, label: "一ヶ月", count: filteredFutureTasks.withinMonth.length },
+                { key: "longTerm" as TabKey, label: "長期", count: filteredFutureTasks.longTerm.length },
+                { key: "noDeadline" as TabKey, label: "期限なし", count: filteredFutureTasks.noDeadline.length },
               ]
                 .filter((tab) => settings.visibleLists[tab.key])
                 .map((tab) => (
@@ -399,15 +438,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               {activeTab === "expired" && settings.visibleLists.expired && (
                 <div>
                   <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
-                    期限切れタスク <span className="font-normal text-red-400">({expiredTasks.length}件)</span>
+                    期限切れタスク <span className="font-normal text-red-400">({filteredExpiredTasks.length}件)</span>
                   </h2>
-                  {expiredTasks.length === 0 ? (
+                  {filteredExpiredTasks.length === 0 ? (
                     <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
                       期限切れタスクがここに表示されます
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {expiredTasks.map((task) => (
+                      {filteredExpiredTasks.map((task) => (
                         <div
                           key={task.id}
                           className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 shadow-sm"
@@ -454,15 +493,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               {activeTab === "today" && settings.visibleLists.today && (
                 <div>
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                    本日の未完了タスク <span className="font-normal text-gray-400">({incompleteTasks.length}件)</span>
+                    本日の未完了タスク <span className="font-normal text-gray-400">({filteredIncompleteTasks.length}件)</span>
                   </h2>
-                  {incompleteTasks.length === 0 && expiredTasks.length === 0 && completedTasks.length === 0 ? (
+                  {filteredIncompleteTasks.length === 0 && filteredExpiredTasks.length === 0 && filteredCompletedTasks.length === 0 ? (
                     <div className="text-center py-12"><div className="text-4xl mb-3">🎉</div><p className="text-gray-500">今日期限のタスクはありません</p></div>
-                  ) : incompleteTasks.length === 0 ? (
+                  ) : filteredIncompleteTasks.length === 0 ? (
                     <div className="text-center py-12 text-gray-400 text-sm">すべて完了しました！</div>
                   ) : (
                     <div className="space-y-2">
-                      {incompleteTasks.map((task) => (
+                      {filteredIncompleteTasks.map((task) => (
                         <div
                           key={task.id}
                           className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
@@ -503,13 +542,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               {activeTab === "completed" && settings.visibleLists.completed && (
                 <div>
                   <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                    完了したタスク <span className="font-normal text-gray-400">({completedTasks.length}件)</span>
+                    完了したタスク <span className="font-normal text-gray-400">({filteredCompletedTasks.length}件)</span>
                   </h2>
-                  {completedTasks.length === 0 ? (
+                  {filteredCompletedTasks.length === 0 ? (
                     <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">完了したタスクがここに表示されます</div>
                   ) : (
                     <div className="space-y-2">
-                      {completedTasks.map((task) => (
+                      {filteredCompletedTasks.map((task) => (
                         <div
                           key={task.id}
                           className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 shadow-sm opacity-80"
@@ -531,13 +570,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               {activeTab === "withinWeek" && settings.visibleLists.withinWeek && (
                 <div>
                   <h2 className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-3">
-                    一週間以内のタスク <span className="font-normal text-blue-400">({futureTasks.withinWeek.length}件)</span>
+                    一週間以内のタスク <span className="font-normal text-blue-400">({filteredFutureTasks.withinWeek.length}件)</span>
                   </h2>
-                  {futureTasks.withinWeek.length === 0 ? (
+                  {filteredFutureTasks.withinWeek.length === 0 ? (
                     <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">一週間以内のタスクがここに表示されます</div>
                   ) : (
                     <div className="space-y-2">
-                      {futureTasks.withinWeek.map((task) => (
+                      {filteredFutureTasks.withinWeek.map((task) => (
                         <div key={task.id} className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-blue-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
@@ -567,13 +606,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               {activeTab === "withinMonth" && settings.visibleLists.withinMonth && (
                 <div>
                   <h2 className="text-sm font-semibold text-orange-600 uppercase tracking-wide mb-3">
-                    一ヶ月以内のタスク <span className="font-normal text-orange-400">({futureTasks.withinMonth.length}件)</span>
+                    一ヶ月以内のタスク <span className="font-normal text-orange-400">({filteredFutureTasks.withinMonth.length}件)</span>
                   </h2>
-                  {futureTasks.withinMonth.length === 0 ? (
+                  {filteredFutureTasks.withinMonth.length === 0 ? (
                     <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">一ヶ月以内のタスクがここに表示されます</div>
                   ) : (
                     <div className="space-y-2">
-                      {futureTasks.withinMonth.map((task) => (
+                      {filteredFutureTasks.withinMonth.map((task) => (
                         <div key={task.id} className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-orange-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
@@ -603,13 +642,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               {activeTab === "longTerm" && settings.visibleLists.longTerm && (
                 <div>
                   <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-3">
-                    長期タスク <span className="font-normal text-purple-400">({futureTasks.longTerm.length}件)</span>
+                    長期タスク <span className="font-normal text-purple-400">({filteredFutureTasks.longTerm.length}件)</span>
                   </h2>
-                  {futureTasks.longTerm.length === 0 ? (
+                  {filteredFutureTasks.longTerm.length === 0 ? (
                     <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">長期タスクがここに表示されます</div>
                   ) : (
                     <div className="space-y-2">
-                      {futureTasks.longTerm.map((task) => (
+                      {filteredFutureTasks.longTerm.map((task) => (
                         <div key={task.id} className="flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-purple-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
@@ -639,13 +678,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               {activeTab === "noDeadline" && settings.visibleLists.noDeadline && (
                 <div>
                   <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
-                    期限なしタスク <span className="font-normal text-gray-400">({futureTasks.noDeadline.length}件)</span>
+                    期限なしタスク <span className="font-normal text-gray-400">({filteredFutureTasks.noDeadline.length}件)</span>
                   </h2>
-                  {futureTasks.noDeadline.length === 0 ? (
+                  {filteredFutureTasks.noDeadline.length === 0 ? (
                     <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">期限なしのタスクがここに表示されます</div>
                   ) : (
                     <div className="space-y-2">
-                      {futureTasks.noDeadline.map((task) => (
+                      {filteredFutureTasks.noDeadline.map((task) => (
                         <div key={task.id} className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 shadow-sm" style={completing.has(task.id) ? { animation: "fadeOut 300ms forwards" } : undefined}>
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
@@ -679,16 +718,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
                   期限切れタスク{" "}
                   <span className="font-normal text-red-400">
-                    ({expiredTasks.length}件)
+                    ({filteredExpiredTasks.length}件)
                   </span>
                 </h2>
-                {expiredTasks.length === 0 ? (
+                {filteredExpiredTasks.length === 0 ? (
                   <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
                     期限切れタスクがここに表示されます
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {expiredTasks.map((task) => (
+                    {filteredExpiredTasks.map((task) => (
                       <div
                         key={task.id}
                         className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 shadow-sm"
@@ -758,21 +797,21 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                   本日の未完了タスク{" "}
                   <span className="font-normal text-gray-400">
-                    ({incompleteTasks.length}件)
+                    ({filteredIncompleteTasks.length}件)
                   </span>
                 </h2>
-                {incompleteTasks.length === 0 && expiredTasks.length === 0 && completedTasks.length === 0 ? (
+                {filteredIncompleteTasks.length === 0 && filteredExpiredTasks.length === 0 && filteredCompletedTasks.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="text-4xl mb-3">🎉</div>
                     <p className="text-gray-500">今日期限のタスクはありません</p>
                   </div>
-                ) : incompleteTasks.length === 0 ? (
+                ) : filteredIncompleteTasks.length === 0 ? (
                   <div className="text-center py-12 text-gray-400 text-sm">
                     すべて完了しました！
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {incompleteTasks.map((task) => (
+                    {filteredIncompleteTasks.map((task) => (
                       <div
                         key={task.id}
                         className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
@@ -830,16 +869,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                   完了したタスク{" "}
                   <span className="font-normal text-gray-400">
-                    ({completedTasks.length}件)
+                    ({filteredCompletedTasks.length}件)
                   </span>
                 </h2>
-                {completedTasks.length === 0 ? (
+                {filteredCompletedTasks.length === 0 ? (
                   <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
                     完了したタスクがここに表示されます
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {completedTasks.map((task) => (
+                    {filteredCompletedTasks.map((task) => (
                       <div
                         key={task.id}
                         className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 shadow-sm opacity-80"
@@ -892,16 +931,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 <h2 className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-3">
                   一週間以内{" "}
                   <span className="font-normal text-blue-400">
-                    ({futureTasks.withinWeek.length}件)
+                    ({filteredFutureTasks.withinWeek.length}件)
                   </span>
                 </h2>
-                {futureTasks.withinWeek.length === 0 ? (
+                {filteredFutureTasks.withinWeek.length === 0 ? (
                   <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
                     一週間以内のタスクがここに表示されます
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {futureTasks.withinWeek.map((task) => (
+                    {filteredFutureTasks.withinWeek.map((task) => (
                       <div
                         key={task.id}
                         className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm"
@@ -964,16 +1003,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 <h2 className="text-sm font-semibold text-orange-600 uppercase tracking-wide mb-3">
                   一ヶ月以内{" "}
                   <span className="font-normal text-orange-400">
-                    ({futureTasks.withinMonth.length}件)
+                    ({filteredFutureTasks.withinMonth.length}件)
                   </span>
                 </h2>
-                {futureTasks.withinMonth.length === 0 ? (
+                {filteredFutureTasks.withinMonth.length === 0 ? (
                   <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
                     一ヶ月以内のタスクがここに表示されます
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {futureTasks.withinMonth.map((task) => (
+                    {filteredFutureTasks.withinMonth.map((task) => (
                       <div
                         key={task.id}
                         className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 shadow-sm"
@@ -1036,16 +1075,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-3">
                   長期{" "}
                   <span className="font-normal text-purple-400">
-                    ({futureTasks.longTerm.length}件)
+                    ({filteredFutureTasks.longTerm.length}件)
                   </span>
                 </h2>
-                {futureTasks.longTerm.length === 0 ? (
+                {filteredFutureTasks.longTerm.length === 0 ? (
                   <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
                     長期タスクがここに表示されます
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {futureTasks.longTerm.map((task) => (
+                    {filteredFutureTasks.longTerm.map((task) => (
                       <div
                         key={task.id}
                         className="flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 shadow-sm"
@@ -1108,16 +1147,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
                   期限なし{" "}
                   <span className="font-normal text-gray-400">
-                    ({futureTasks.noDeadline.length}件)
+                    ({filteredFutureTasks.noDeadline.length}件)
                   </span>
                 </h2>
-                {futureTasks.noDeadline.length === 0 ? (
+                {filteredFutureTasks.noDeadline.length === 0 ? (
                   <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
                     期限なしのタスクがここに表示されます
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {futureTasks.noDeadline.map((task) => (
+                    {filteredFutureTasks.noDeadline.map((task) => (
                       <div
                         key={task.id}
                         className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 shadow-sm"
@@ -1178,7 +1217,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         onClose={() => {
           setShowSettings(false);
           refreshSettings();
-        }} 
+        }}
+        allTasks={[
+          ...incompleteTasks,
+          ...expiredTasks,
+          ...completedTasks,
+          ...futureTasks.withinWeek,
+          ...futureTasks.withinMonth,
+          ...futureTasks.longTerm,
+          ...futureTasks.noDeadline,
+        ]}
       />
     </div>
   );

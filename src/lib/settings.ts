@@ -9,6 +9,7 @@ export interface AppSettings {
     longTerm: boolean;
     noDeadline: boolean;
   };
+  visibleCategories: Record<string, boolean>;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -22,6 +23,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     longTerm: true,
     noDeadline: true,
   },
+  visibleCategories: {},
 };
 
 const SETTINGS_COOKIE_NAME = "todo-app-settings";
@@ -54,6 +56,27 @@ export function saveSettings(settings: AppSettings): void {
     setCookie(SETTINGS_COOKIE_NAME, value, 365);
   } catch (error) {
     console.error("設定の保存に失敗しました:", error);
+  }
+}
+
+export function updateCategoriesFromTasks(tasks: { listTitle: string }[]): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const settings = getSettings();
+  let needsUpdate = false;
+
+  // 新しいカテゴリーを自動的に有効化
+  tasks.forEach(task => {
+    if (task.listTitle && !(task.listTitle in settings.visibleCategories)) {
+      settings.visibleCategories[task.listTitle] = true;
+      needsUpdate = true;
+    }
+  });
+
+  if (needsUpdate) {
+    saveSettings(settings);
   }
 }
 
