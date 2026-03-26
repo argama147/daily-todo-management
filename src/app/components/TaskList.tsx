@@ -54,11 +54,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     visibleCategories: {},
   });
   
-  // スワイプ関連の状態
+  // スワイプ・ドラッグ関連の状態
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
   const [isSwiping, setIsSwiping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // デスクトップドラッグスクロール関連の状態
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [scrollStart, setScrollStart] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
   
   // タブの順序定義
   const tabOrder: TabKey[] = ["expired", "today", "completed", "withinWeek", "withinMonth", "longTerm", "noDeadline"];
@@ -262,6 +267,89 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
            window.innerWidth <= 768;
   };
+
+  // デスクトップでのマウスドラッグスクロール
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isMobile()) return;
+    
+    const container = containerRef.current;
+    if (!container) return;
+    
+    setIsDragging(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+    setScrollStart({ left: container.scrollLeft, top: container.scrollTop });
+    
+    // カーソルを掴み状態に変更
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !dragStart || isMobile()) return;
+    
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const deltaX = e.clientX - dragStart.x;
+    const deltaY = e.clientY - dragStart.y;
+    
+    // 横スクロールを実行
+    container.scrollLeft = scrollStart.left - deltaX;
+    container.scrollTop = scrollStart.top - deltaY;
+    
+    e.preventDefault();
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    
+    setIsDragging(false);
+    setDragStart(null);
+    
+    // カーソルを元に戻す
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  };
+
+  const handleMouseLeave = () => {
+    if (isDragging) {
+      handleMouseUp();
+    }
+  };
+
+  // グローバルマウスアップイベント（ドラッグ中にマウスがコンテナ外に出た場合）
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        handleMouseUp();
+      }
+    };
+    
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !dragStart || isMobile()) return;
+      
+      const container = containerRef.current;
+      if (!container) return;
+      
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      container.scrollLeft = scrollStart.left - deltaX;
+      container.scrollTop = scrollStart.top - deltaY;
+    };
+
+    if (isDragging) {
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+    }
+
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+    };
+  }, [isDragging, dragStart, scrollStart]);
 
   // スワイプイベントハンドラー
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -709,9 +797,17 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             </div>
 
             {/* デスクトップ: 動的カラム数 */}
-            <div className={`hidden lg:grid gap-4 overflow-x-auto`} style={{ 
-              gridTemplateColumns: `repeat(${Object.values(settings.visibleLists).filter(Boolean).length || 1}, minmax(280px, 1fr))` 
-            }}>
+            <div 
+              ref={containerRef}
+              className={`hidden lg:grid gap-4 overflow-x-auto ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`} 
+              style={{ 
+                gridTemplateColumns: `repeat(${Object.values(settings.visibleLists).filter(Boolean).length || 1}, minmax(280px, 1fr))` 
+              }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+            >
               {/* 期限切れカラム */}
               {settings.visibleLists.expired && (
               <div>
