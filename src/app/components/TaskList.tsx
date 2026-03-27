@@ -538,15 +538,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             <p className="text-sm text-gray-500">{today}</p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowSettings(true)}
-              className="lg:hidden flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="設定"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+            {/* デスクトップ: 設定ボタン（歯車アイコン＋テキスト） */}
             <button
               onClick={() => setShowSettings(true)}
               className="hidden lg:flex items-center gap-2 px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
@@ -557,13 +549,19 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               </svg>
               設定
             </button>
+            {/* 更新ボタン: モバイルはアイコンのみ、デスクトップはテキスト */}
             <button
               onClick={fetchTasks}
               disabled={loading}
-              className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
+              className="flex items-center justify-center text-blue-600 hover:text-blue-800 disabled:opacity-50"
+              aria-label="更新"
             >
-              {loading ? "更新中..." : "更新"}
+              <svg className={`w-5 h-5 lg:hidden ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="hidden lg:inline text-sm">{loading ? "更新中..." : "更新"}</span>
             </button>
+            {/* ユーザー名＋ログアウト: モバイルは縦並び、デスクトップは横並び */}
             {user && settings.showUserName && (
               <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-lg">
                 {user.image && (
@@ -573,16 +571,36 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     className="w-6 h-6 rounded-full"
                   />
                 )}
-                <span className="text-sm text-gray-700 font-medium">
-                  {user.name || user.email}
-                </span>
+                <div className="flex flex-col lg:flex-row lg:items-center lg:gap-2">
+                  <span className="text-sm text-gray-700 font-medium leading-tight">
+                    {user.name || user.email}
+                  </span>
+                  <button
+                    onClick={() => signOut()}
+                    className="text-xs lg:text-sm text-gray-500 hover:text-gray-700 text-left leading-tight"
+                  >
+                    ログアウト
+                  </button>
+                </div>
               </div>
             )}
+            {!(user && settings.showUserName) && (
+              <button
+                onClick={() => signOut()}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                ログアウト
+              </button>
+            )}
+            {/* モバイル: ハンバーガーボタン（一番右） */}
             <button
-              onClick={() => signOut()}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              onClick={() => setShowSettings(true)}
+              className="lg:hidden flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="設定"
             >
-              ログアウト
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
           </div>
         </div>
