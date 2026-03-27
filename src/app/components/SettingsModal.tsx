@@ -36,7 +36,11 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
   }, [isOpen]);
 
   const handleSave = () => {
-    saveSettings(settings);
+    const settingsToSave = {
+      ...settings,
+      taskFilterSets: settings.taskFilterSets.map(set => ({ ...set, name: set.name.trim() })),
+    };
+    saveSettings(settingsToSave);
     onClose();
   };
 
@@ -120,13 +124,13 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
   };
 
   const handleUpdateFilterSetName = (filterSetId: string, newName: string) => {
-    if (!newName.trim() || newName.length > 10) return;
-    
+    if (newName.length > 10) return;
+
     setSettings(prev => ({
       ...prev,
       taskFilterSets: prev.taskFilterSets.map(set =>
         set.id === filterSetId
-          ? { ...set, name: newName.trim() }
+          ? { ...set, name: newName }
           : set
       ),
     }));
@@ -302,7 +306,8 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+            disabled={settings.taskFilterSets.some(s => !s.name.trim())}
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             保存
           </button>
