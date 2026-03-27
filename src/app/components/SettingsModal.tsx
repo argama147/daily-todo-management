@@ -258,7 +258,7 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
                         value={newFilterSetName}
                         onChange={(e) => setNewFilterSetName(e.target.value)}
                         maxLength={10}
-                        className="text-sm border border-gray-300 rounded px-2 py-1 flex-1"
+                        className="text-sm text-gray-900 border border-gray-300 rounded px-2 py-1 flex-1 placeholder:text-gray-400"
                         autoFocus
                       />
                       <button
