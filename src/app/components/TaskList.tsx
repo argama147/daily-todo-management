@@ -417,6 +417,33 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     weekday: "short",
   });
 
+  // 時刻が設定されているかどうかを判定するヘルパー関数
+  const hasTime = (dueDateString: string) => {
+    if (!dueDateString) return false;
+    // ISO文字列の時刻部分をチェック
+    const timePart = dueDateString.split('T')[1];
+    if (!timePart) return false;
+    // 時刻が00:00:00.000Z以外の場合は時刻が設定されている
+    return !timePart.startsWith('00:00:00');
+  };
+
+  // 日付と時刻をフォーマットするヘルパー関数
+  const formatDateTime = (dueDateString: string, showTime: boolean = false) => {
+    if (!dueDateString) return '';
+    const date = new Date(dueDateString);
+    const dateStr = date.toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" });
+    
+    if (showTime && hasTime(dueDateString)) {
+      const timeStr = date.toLocaleTimeString("ja-JP", { 
+        timeZone: "Asia/Tokyo",
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      return `${dateStr} ${timeStr}`;
+    }
+    return dateStr;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-4 py-4">
@@ -598,7 +625,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <button onClick={() => completeTask(task)} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-800 font-medium leading-snug break-words">{task.title}</p>
-                            <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
+                              {hasTime(task.due) && (
+                                <span className="text-xs text-blue-600 bg-blue-100 rounded px-2 py-0.5 font-medium">
+                                  {formatDateTime(task.due, true)}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex-shrink-0 ml-2">
                             {showDatePicker === task.id ? (
@@ -927,9 +961,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <p className="text-gray-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
-                          <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
-                            {task.listTitle}
-                          </span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
+                              {task.listTitle}
+                            </span>
+                            {hasTime(task.due) && (
+                              <span className="text-xs text-blue-600 bg-blue-100 rounded px-2 py-0.5 font-medium">
+                                {formatDateTime(task.due, true)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex-shrink-0 ml-2">
                           {showDatePicker === task.id ? (
