@@ -1,3 +1,10 @@
+export interface TaskFilterSet {
+  id: string;
+  name: string;
+  categories: Record<string, boolean>;
+  isDefault: boolean;
+}
+
 export interface AppSettings {
   showUserName: boolean;
   visibleLists: {
@@ -10,7 +17,16 @@ export interface AppSettings {
     noDeadline: boolean;
   };
   visibleCategories: Record<string, boolean>;
+  taskFilterSets: TaskFilterSet[];
+  selectedFilterSetId: string;
 }
+
+const DEFAULT_FILTER_SET: TaskFilterSet = {
+  id: 'default',
+  name: 'ALL',
+  categories: {},
+  isDefault: true,
+};
 
 const DEFAULT_SETTINGS: AppSettings = {
   showUserName: true,
@@ -24,9 +40,12 @@ const DEFAULT_SETTINGS: AppSettings = {
     noDeadline: true,
   },
   visibleCategories: {},
+  taskFilterSets: [DEFAULT_FILTER_SET],
+  selectedFilterSetId: 'default',
 };
 
 const SETTINGS_COOKIE_NAME = "todo-app-settings";
+const SELECTED_TAB_COOKIE_NAME = "todo-app-selected-tab";
 
 export function getSettings(): AppSettings {
   if (typeof window === "undefined") {
@@ -37,7 +56,15 @@ export function getSettings(): AppSettings {
     const stored = getCookie(SETTINGS_COOKIE_NAME);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      const settings = { ...DEFAULT_SETTINGS, ...parsed };
+      
+      // フィルターセットが存在しない場合は初期化
+      if (!settings.taskFilterSets || settings.taskFilterSets.length === 0) {
+        settings.taskFilterSets = [DEFAULT_FILTER_SET];
+        settings.selectedFilterSetId = 'default';
+      }
+      
+      return settings;
     }
   } catch (error) {
     console.warn("設定の読み込みに失敗しました:", error);
@@ -67,12 +94,22 @@ export function updateCategoriesFromTasks(tasks: { listTitle: string }[]): void 
   const settings = getSettings();
   let needsUpdate = false;
 
-  // 新しいカテゴリーを自動的に有効化
+  // 新しいカテゴリーを自動的に有効化（既存の visibleCategories 用）
   tasks.forEach(task => {
     if (task.listTitle && !(task.listTitle in settings.visibleCategories)) {
       settings.visibleCategories[task.listTitle] = true;
       needsUpdate = true;
     }
+  });
+
+  // フィルターセットにも新しいカテゴリーを追加
+  settings.taskFilterSets.forEach(filterSet => {
+    tasks.forEach(task => {
+      if (task.listTitle && !(task.listTitle in filterSet.categories)) {
+        filterSet.categories[task.listTitle] = true;
+        needsUpdate = true;
+      }
+    });
   });
 
   if (needsUpdate) {
@@ -93,4 +130,29 @@ function setCookie(name: string, value: string, days: number): void {
   const expires = new Date();
   expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
   document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+}
+
+// フィルターセット管理のヘルパー関数
+export function getActiveFilterSet(settings: AppSettings): TaskFilterSet {
+  const activeSet = settings.taskFilterSets.find(set => set.id === settings.selectedFilterSetId);
+  return activeSet || settings.taskFilterSets[0] || DEFAULT_FILTER_SET;
+}
+
+export function createTaskFilterSet(name: string, categories: Record<string, boolean>): TaskFilterSet {
+  return {
+    id: `set_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name: name.slice(0, 10), // 全角10文字まで
+    categories: { ...categories },
+    isDefault: false,
+  };
+}
+
+export function saveSelectedFilterSetId(filterSetId: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const settings = getSettings();
+  settings.selectedFilterSetId = filterSetId;
+  saveSettings(settings);
 }
