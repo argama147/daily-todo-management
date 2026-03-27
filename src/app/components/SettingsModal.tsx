@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getSettings, saveSettings, type AppSettings } from "@/lib/settings";
+import { getSettings, saveSettings, createTaskFilterSet, getActiveFilterSet, type AppSettings, type TaskFilterSet } from "@/lib/settings";
 import type { Task } from "@/lib/tasks";
 
 interface SettingsModalProps {
@@ -23,7 +23,11 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
       noDeadline: true,
     },
     visibleCategories: {},
+    taskFilterSets: [],
+    selectedFilterSetId: 'default',
   });
+  const [newFilterSetName, setNewFilterSetName] = useState('');
+  const [showNewFilterSetForm, setShowNewFilterSetForm] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -33,6 +37,12 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
 
   const handleSave = () => {
     saveSettings(settings);
+    onClose();
+  };
+
+  const handleCancel = () => {
+    setShowNewFilterSetForm(false);
+    setNewFilterSetName('');
     onClose();
   };
 
@@ -60,6 +70,65 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
         ...prev.visibleCategories,
         [categoryKey]: !prev.visibleCategories[categoryKey],
       },
+    }));
+  };
+
+  const handleToggleFilterSetCategory = (filterSetId: string, categoryKey: string) => {
+    setSettings(prev => ({
+      ...prev,
+      taskFilterSets: prev.taskFilterSets.map(set =>
+        set.id === filterSetId
+          ? {
+              ...set,
+              categories: {
+                ...set.categories,
+                [categoryKey]: !set.categories[categoryKey],
+              },
+            }
+          : set
+      ),
+    }));
+  };
+
+  const handleAddFilterSet = () => {
+    if (!newFilterSetName.trim()) return;
+
+    // 利用可能なカテゴリー一覧から全て有効にした状態で新しいセットを作成
+    const allCategories: Record<string, boolean> = {};
+    availableCategories.forEach(category => {
+      allCategories[category] = true;
+    });
+
+    const newFilterSet = createTaskFilterSet(newFilterSetName.trim(), allCategories);
+    setSettings(prev => ({
+      ...prev,
+      taskFilterSets: [...prev.taskFilterSets, newFilterSet],
+    }));
+    
+    setNewFilterSetName('');
+    setShowNewFilterSetForm(false);
+  };
+
+  const handleDeleteFilterSet = (filterSetId: string) => {
+    setSettings(prev => ({
+      ...prev,
+      taskFilterSets: prev.taskFilterSets.filter(set => set.id !== filterSetId),
+      selectedFilterSetId: prev.selectedFilterSetId === filterSetId 
+        ? (prev.taskFilterSets.find(set => set.isDefault)?.id || prev.taskFilterSets[0]?.id || 'default')
+        : prev.selectedFilterSetId,
+    }));
+  };
+
+  const handleUpdateFilterSetName = (filterSetId: string, newName: string) => {
+    if (!newName.trim() || newName.length > 10) return;
+    
+    setSettings(prev => ({
+      ...prev,
+      taskFilterSets: prev.taskFilterSets.map(set =>
+        set.id === filterSetId
+          ? { ...set, name: newName.trim() }
+          : set
+      ),
     }));
   };
 
@@ -133,10 +202,100 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
             </div>
           </div>
 
-          {/* タスクカテゴリー表示設定 */}
+          {/* フィルターセット管理 */}
           {availableCategories.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-3">表示するタスクの種別</h3>
+              
+              {/* 既存のフィルターセット一覧 */}
+              <div className="space-y-4">
+                {settings.taskFilterSets.map((filterSet) => (
+                  <div key={filterSet.id} className="border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <input
+                        type="text"
+                        value={filterSet.name}
+                        onChange={(e) => handleUpdateFilterSetName(filterSet.id, e.target.value)}
+                        maxLength={10}
+                        className="text-sm font-medium text-gray-700 border border-gray-300 rounded px-2 py-1 flex-1 mr-2"
+                        disabled={filterSet.isDefault}
+                      />
+                      {!filterSet.isDefault && (
+                        <button
+                          onClick={() => handleDeleteFilterSet(filterSet.id)}
+                          className="text-red-600 hover:text-red-800 text-xs px-2 py-1 border border-red-300 rounded hover:bg-red-50"
+                        >
+                          削除
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {availableCategories.map((category) => (
+                        <div key={category} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`filter-${filterSet.id}-${category}`}
+                            checked={filterSet.categories[category] !== false}
+                            onChange={() => handleToggleFilterSetCategory(filterSet.id, category)}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <label htmlFor={`filter-${filterSet.id}-${category}`} className="ml-2 text-xs text-gray-600">
+                            {category}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                
+                {/* 新しいフィルターセット追加フォーム */}
+                {showNewFilterSetForm ? (
+                  <div className="border border-gray-300 border-dashed rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="text"
+                        placeholder="セット名（10文字まで）"
+                        value={newFilterSetName}
+                        onChange={(e) => setNewFilterSetName(e.target.value)}
+                        maxLength={10}
+                        className="text-sm border border-gray-300 rounded px-2 py-1 flex-1"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleAddFilterSet}
+                        disabled={!newFilterSetName.trim()}
+                        className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        追加
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowNewFilterSetForm(false);
+                          setNewFilterSetName('');
+                        }}
+                        className="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 border border-gray-300 rounded"
+                      >
+                        キャンセル
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">新しいセットは全てのカテゴリーがチェック済みの状態で作成されます</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowNewFilterSetForm(true)}
+                    className="w-full border border-gray-300 border-dashed rounded-lg p-3 text-sm text-gray-600 hover:text-gray-800 hover:border-gray-400"
+                  >
+                    + 新しいフィルターセットを追加
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 旧形式のタスクカテゴリー表示設定（下位互換性のため残す） */}
+          {availableCategories.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">表示するタスクの種別（旧形式）</h3>
               <div className="space-y-3">
                 {availableCategories.map((category) => (
                   <div key={category} className="flex items-center">
@@ -159,7 +318,7 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
 
         <div className="flex justify-end gap-3 p-4 border-t border-gray-200">
           <button
-            onClick={onClose}
+            onClick={handleCancel}
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
           >
             キャンセル

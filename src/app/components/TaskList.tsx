@@ -4,7 +4,7 @@ import { signOut } from "next-auth/react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Task } from "@/lib/tasks";
 import type { User } from "next-auth";
-import { getSettings, updateCategoriesFromTasks, type AppSettings } from "@/lib/settings";
+import { getSettings, updateCategoriesFromTasks, getActiveFilterSet, saveSelectedFilterSetId, type AppSettings, type TaskFilterSet } from "@/lib/settings";
 import SettingsModal from "./SettingsModal";
 import TaskDetail from "./TaskDetail";
 
@@ -53,7 +53,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       noDeadline: true,
     },
     visibleCategories: {},
+    taskFilterSets: [],
+    selectedFilterSetId: 'default',
   });
+  const [selectedFilterSetId, setSelectedFilterSetId] = useState<string>('default');
   
   // スワイプ・ドラッグ関連の状態
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -76,7 +79,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
 
   // 設定の読み込み
   useEffect(() => {
-    setSettings(getSettings());
+    const loadedSettings = getSettings();
+    setSettings(loadedSettings);
+    setSelectedFilterSetId(loadedSettings.selectedFilterSetId);
   }, []);
 
   // タスクカテゴリーの設定を更新
@@ -102,13 +107,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   // タスクカテゴリーフィルタリング関数
   const filterTasksByCategory = (tasks: Task[]) => {
     return tasks.filter(task => {
-      // カテゴリー設定がない場合はすべて表示
+      // アクティブなフィルターセットを取得
+      const activeFilterSet = getActiveFilterSet(settings);
+      
+      // フィルターセットが存在し、かつカテゴリー設定がある場合
+      if (activeFilterSet && Object.keys(activeFilterSet.categories).length > 0) {
+        return activeFilterSet.categories[task.listTitle] !== false;
+      }
+      
+      // フォールバック：従来のvisibleCategories設定を使用
       if (Object.keys(settings.visibleCategories).length === 0) {
         return true;
       }
-      // カテゴリー設定がある場合は、明示的にfalseでない限り表示
       return settings.visibleCategories[task.listTitle] !== false;
     });
+  };
+
+  // フィルターセット切り替えハンドラー
+  const handleFilterSetChange = (filterSetId: string) => {
+    setSelectedFilterSetId(filterSetId);
+    saveSelectedFilterSetId(filterSetId);
+    
+    // 設定を再読み込み
+    const updatedSettings = getSettings();
+    setSettings(updatedSettings);
   };
 
   // フィルタリングされたタスクリスト
@@ -571,6 +593,27 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           <div className="text-center py-16 text-gray-400">タスクを取得中...</div>
         ) : (
           <>
+            {/* フィルターセット選択タブ（複数ある場合のみ表示） */}
+            {settings.taskFilterSets.length > 1 && (
+              <div className="border-b border-gray-300 mb-4">
+                <div className="flex overflow-x-auto">
+                  {settings.taskFilterSets.map((filterSet) => (
+                    <button
+                      key={filterSet.id}
+                      onClick={() => handleFilterSetChange(filterSet.id)}
+                      className={`flex-shrink-0 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        selectedFilterSetId === filterSet.id
+                          ? "border-green-500 text-green-600"
+                          : "border-transparent text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      {filterSet.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* モバイルのみ: タブ */}
             <div className="flex lg:hidden border-b border-gray-200 mb-4 overflow-x-auto">
               {[
@@ -914,6 +957,27 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 </div>
               )}
             </div>
+
+            {/* フィルターセット選択タブ（デスクトップ・複数ある場合のみ表示） */}
+            {settings.taskFilterSets.length > 1 && (
+              <div className="hidden lg:block border-b border-gray-300 mb-6">
+                <div className="flex overflow-x-auto">
+                  {settings.taskFilterSets.map((filterSet) => (
+                    <button
+                      key={filterSet.id}
+                      onClick={() => handleFilterSetChange(filterSet.id)}
+                      className={`flex-shrink-0 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                        selectedFilterSetId === filterSet.id
+                          ? "border-green-500 text-green-600"
+                          : "border-transparent text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      {filterSet.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* デスクトップ: 動的カラム数 */}
             <div 
