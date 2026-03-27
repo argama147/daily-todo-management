@@ -593,9 +593,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           <div className="text-center py-16 text-gray-400">タスクを取得中...</div>
         ) : (
           <>
-            {/* フィルターセット選択タブ（複数ある場合のみ表示） */}
+            {/* フィルターセット選択タブ（モバイル・複数ある場合のみ表示） */}
             {settings.taskFilterSets.length > 1 && (
-              <div className="border-b border-gray-300 mb-4">
+              <div className="lg:hidden border-b border-gray-300 mb-4">
                 <div className="flex overflow-x-auto">
                   {settings.taskFilterSets.map((filterSet) => (
                     <button
