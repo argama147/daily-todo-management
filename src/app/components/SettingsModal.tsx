@@ -295,6 +295,29 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
             </div>
           )}
 
+          {/* このアプリについて */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">このアプリについて</h3>
+            <div className="space-y-2">
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                プライバシーポリシー
+              </a>
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                利用規約
+              </a>
+            </div>
+          </div>
+
         </div>
 
         <div className="flex justify-end gap-3 p-4 border-t border-gray-200">
