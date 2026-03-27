@@ -44,7 +44,7 @@ export async function fetchTodayTasks(accessToken: string): Promise<Task[]> {
             status: task.status ?? "needsAction",
             listId: list.id!,
             listTitle: list.title ?? "(リストなし)",
-            notes: task.notes,
+            notes: task.notes ?? undefined,
           });
         }
       }
@@ -88,7 +88,7 @@ export async function fetchExpiredTasks(accessToken: string): Promise<Task[]> {
             status: task.status ?? "needsAction",
             listId: list.id!,
             listTitle: list.title ?? "(リストなし)",
-            notes: task.notes,
+            notes: task.notes ?? undefined,
           });
         }
       }
@@ -146,7 +146,7 @@ export async function fetchFutureTasks(accessToken: string): Promise<{
             status: task.status ?? "needsAction",
             listId: list.id!,
             listTitle: list.title ?? "(リストなし)",
-            notes: task.notes,
+            notes: task.notes ?? undefined,
           };
 
           if (taskDate <= oneWeekFromNow) {
@@ -215,7 +215,7 @@ export async function fetchTodayCompletedTasks(accessToken: string): Promise<Tas
             status: task.status,
             listId: list.id!,
             listTitle: list.title ?? "(リストなし)",
-            notes: task.notes,
+            notes: task.notes ?? undefined,
           });
         }
       }
