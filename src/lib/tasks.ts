@@ -166,7 +166,7 @@ export async function fetchFutureTasks(accessToken: string): Promise<{
           status: task.status ?? "needsAction",
           listId: list.id!,
           listTitle: list.title ?? "(リストなし)",
-          notes: task.notes,
+          notes: task.notes ?? undefined,
         });
       }
     }
