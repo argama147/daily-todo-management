@@ -292,28 +292,6 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
             </div>
           )}
 
-          {/* 旧形式のタスクカテゴリー表示設定（下位互換性のため残す） */}
-          {availableCategories.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">表示するタスクの種別（旧形式）</h3>
-              <div className="space-y-3">
-                {availableCategories.map((category) => (
-                  <div key={category} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id={`category-${category}`}
-                      checked={settings.visibleCategories[category] !== false}
-                      onChange={() => handleToggleCategory(category)}
-                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label htmlFor={`category-${category}`} className="ml-2 text-sm text-gray-600">
-                      {category}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="flex justify-end gap-3 p-4 border-t border-gray-200">
