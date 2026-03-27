@@ -4,6 +4,7 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
+    <div className="min-h-screen bg-white">
     <div className="max-w-2xl mx-auto px-6 py-12 text-gray-800">
       <h1 className="text-2xl font-bold mb-8">利用規約</h1>
 
@@ -69,6 +70,7 @@ export default function TermsPage() {
           ← トップページに戻る
         </a>
       </div>
+    </div>
     </div>
   );
 }
