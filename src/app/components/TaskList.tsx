@@ -301,6 +301,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     // モバイルでは長押しで詳細表示するため、通常クリックでは何もしない
     if (isMobile() || !task.notes) return;
 
+    // 同じタスクをクリックした場合は吹き出しを閉じる
+    if (selectedTask?.id === task.id) {
+      handleCloseDetail();
+      return;
+    }
+
     // デスクトップでタスクにnotesがある場合は詳細を表示
     const rect = event.currentTarget.getBoundingClientRect();
     setDetailPosition({
