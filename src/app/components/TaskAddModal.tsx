@@ -42,11 +42,9 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists }: Prop
 
     setAdding(true);
     try {
-      // 日付形式をISO形式に変換（未入力の場合は今日の日付を設定）
-      const isoDate = due 
-        ? new Date(due).toISOString()
-        : new Date().toISOString().slice(0, 10) + "T00:00:00.000Z";
-      
+      // 日付形式をISO形式に変換（未入力の場合は空文字のまま渡す）
+      const isoDate = due ? `${due}:00.000Z` : "";
+
       await onAdd(listId, title.trim(), notes.trim(), isoDate);
       onClose();
     } catch (e) {
@@ -135,7 +133,7 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists }: Prop
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
             />
             <div className="text-xs text-gray-500 mt-1">
-              未入力の場合は今日の期限として設定されます
+              未入力の場合は期限なしとして設定されます
             </div>
           </div>
         </div>
