@@ -223,7 +223,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     const patchPromise = fetch("/api/tasks", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId: task.id, listId: task.listId }),
+      body: JSON.stringify({ taskId: task.id, listId: task.listId, status: "completed" }),
     });
 
     setTimeout(() => {
