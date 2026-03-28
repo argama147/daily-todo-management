@@ -7,9 +7,10 @@ type Props = {
   onClose: () => void;
   onAdd: (listId: string, title: string, notes: string, due: string) => Promise<void>;
   taskLists: { id: string; title: string }[];
+  filteredTaskLists?: { id: string; title: string }[];
 };
 
-export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists }: Props) {
+export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists, filteredTaskLists }: Props) {
   const [listId, setListId] = useState("");
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -19,13 +20,14 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists }: Prop
   // モーダルが開かれた時にリセット
   useEffect(() => {
     if (isOpen) {
-      setListId(taskLists.length > 0 ? taskLists[0].id : "");
+      const availableLists = filteredTaskLists || taskLists;
+      setListId(availableLists.length > 0 ? availableLists[0].id : "");
       setTitle("");
       setNotes("");
       setDue("");
       setAdding(false);
     }
-  }, [isOpen, taskLists]);
+  }, [isOpen, taskLists, filteredTaskLists]);
 
   if (!isOpen) return null;
 
@@ -84,7 +86,7 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists }: Prop
               onChange={(e) => setListId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
             >
-              {taskLists.map((list) => (
+              {(filteredTaskLists || taskLists).map((list) => (
                 <option key={list.id} value={list.id}>
                   {list.title}
                 </option>
