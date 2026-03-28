@@ -220,10 +220,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       const syncRes = await fetch("/api/tasks");
       if (syncRes.ok) {
         const data = await syncRes.json();
-        setIncompleteTasks(data.todayTasks);
-        setExpiredTasks(data.expiredTasks);
+        setIncompleteTasks((data.todayTasks ?? []).filter((t: Task) => t.id !== task.id));
+        setExpiredTasks((data.expiredTasks ?? []).filter((t: Task) => t.id !== task.id));
         if (data.futureTasks) {
-          setFutureTasks(data.futureTasks);
+          setFutureTasks({
+            withinWeek: data.futureTasks.withinWeek.filter((t: Task) => t.id !== task.id),
+            withinMonth: data.futureTasks.withinMonth.filter((t: Task) => t.id !== task.id),
+            longTerm: data.futureTasks.longTerm.filter((t: Task) => t.id !== task.id),
+            noDeadline: data.futureTasks.noDeadline.filter((t: Task) => t.id !== task.id),
+          });
         }
       }
     } catch (e) {
