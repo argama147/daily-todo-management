@@ -41,7 +41,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   type TabKey = "expired" | "today" | "completed" | "withinWeek" | "withinMonth" | "longTerm" | "noDeadline";
   const [activeTab, setActiveTab] = useState<TabKey>("today");
   const [changingDue, setChangingDue] = useState<Set<string>>(new Set());
-  const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
+  const [datePickerTask, setDatePickerTask] = useState<Task | null>(null);
+  const datePickerRef = useRef<HTMLInputElement>(null);
   const [showTaskMenu, setShowTaskMenu] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<string | null>(null);
@@ -277,9 +278,18 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     }
   };
 
+  const openDatePicker = (task: Task) => {
+    setDatePickerTask(task);
+    setShowTaskMenu(null);
+    if (datePickerRef.current) {
+      datePickerRef.current.value = task.due ? task.due.slice(0, 10) : new Date().toISOString().split('T')[0];
+      datePickerRef.current.showPicker();
+    }
+  };
+
   const changeDueDate = async (task: Task, newDue: string) => {
     setChangingDue((prev) => new Set(prev).add(task.id));
-    setShowDatePicker(null);
+    setDatePickerTask(null);
 
     try {
       const res = await fetch("/api/tasks", {
@@ -696,6 +706,18 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <input
+        ref={datePickerRef}
+        type="date"
+        className="sr-only"
+        onChange={(e) => {
+          if (datePickerTask && e.target.value) {
+            changeDueDate(datePickerTask, e.target.value + "T00:00:00.000Z");
+          }
+          setDatePickerTask(null);
+        }}
+        onBlur={() => setDatePickerTask(null)}
+      />
       <header className="bg-white border-b border-gray-200 px-4 py-4">
         <div className="w-full mx-auto flex items-center justify-between">
           <div>
@@ -892,7 +914,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -905,15 +927,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   {deletingTask === task.id ? "削除中..." : "削除"}
                                 </button>
                               </div>
-                            ) : showDatePicker === task.id ? (
-                              <input
-                                type="date"
-                                defaultValue={task.due.slice(0, 10)}
-                                onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
-                                onBlur={() => setShowDatePicker(null)}
-                                className="text-xs p-1 border rounded"
-                                autoFocus
-                              />
                             ) : (
                               <button
                                 onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -974,7 +987,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -987,15 +1000,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   {deletingTask === task.id ? "削除中..." : "削除"}
                                 </button>
                               </div>
-                            ) : showDatePicker === task.id ? (
-                              <input
-                                type="date"
-                                defaultValue={new Date().toISOString().split('T')[0]}
-                                onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
-                                onBlur={() => setShowDatePicker(null)}
-                                className="text-xs p-1 border rounded"
-                                autoFocus
-                              />
                             ) : (
                               <button
                                 onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1077,7 +1081,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1090,8 +1094,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   {deletingTask === task.id ? "削除中..." : "削除"}
                                 </button>
                               </div>
-                            ) : showDatePicker === task.id ? (
-                              <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
                               <button
                                 onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1145,7 +1147,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1158,8 +1160,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   {deletingTask === task.id ? "削除中..." : "削除"}
                                 </button>
                               </div>
-                            ) : showDatePicker === task.id ? (
-                              <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
                               <button
                                 onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1213,7 +1213,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1226,8 +1226,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   {deletingTask === task.id ? "削除中..." : "削除"}
                                 </button>
                               </div>
-                            ) : showDatePicker === task.id ? (
-                              <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
                               <button
                                 onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1276,7 +1274,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1289,8 +1287,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   {deletingTask === task.id ? "削除中..." : "削除"}
                                 </button>
                               </div>
-                            ) : showDatePicker === task.id ? (
-                              <input type="date" defaultValue={new Date().toISOString().split('T')[0]} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
                               <button
                                 onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1411,7 +1407,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -1424,15 +1420,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 {deletingTask === task.id ? "削除中..." : "削除"}
                               </button>
                             </div>
-                          ) : showDatePicker === task.id ? (
-                            <input
-                              type="date"
-                              defaultValue={task.due.slice(0, 10)}
-                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
-                              onBlur={() => setShowDatePicker(null)}
-                              className="text-xs p-1 border rounded"
-                              autoFocus
-                            />
                           ) : (
                             <button
                               onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1519,7 +1506,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -1532,15 +1519,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 {deletingTask === task.id ? "削除中..." : "削除"}
                               </button>
                             </div>
-                          ) : showDatePicker === task.id ? (
-                            <input
-                              type="date"
-                              defaultValue={new Date().toISOString().split('T')[0]}
-                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
-                              onBlur={() => setShowDatePicker(null)}
-                              className="text-xs p-1 border rounded"
-                              autoFocus
-                            />
                           ) : (
                             <button
                               onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1689,7 +1667,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -1702,15 +1680,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 {deletingTask === task.id ? "削除中..." : "削除"}
                               </button>
                             </div>
-                          ) : showDatePicker === task.id ? (
-                            <input
-                              type="date"
-                              defaultValue={task.due.slice(0, 10)}
-                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
-                              onBlur={() => setShowDatePicker(null)}
-                              className="text-xs p-1 border rounded"
-                              autoFocus
-                            />
                           ) : (
                             <button
                               onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1790,7 +1759,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -1803,15 +1772,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 {deletingTask === task.id ? "削除中..." : "削除"}
                               </button>
                             </div>
-                          ) : showDatePicker === task.id ? (
-                            <input
-                              type="date"
-                              defaultValue={task.due.slice(0, 10)}
-                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
-                              onBlur={() => setShowDatePicker(null)}
-                              className="text-xs p-1 border rounded"
-                              autoFocus
-                            />
                           ) : (
                             <button
                               onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1891,7 +1851,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -1904,15 +1864,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 {deletingTask === task.id ? "削除中..." : "削除"}
                               </button>
                             </div>
-                          ) : showDatePicker === task.id ? (
-                            <input
-                              type="date"
-                              defaultValue={task.due.slice(0, 10)}
-                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
-                              onBlur={() => setShowDatePicker(null)}
-                              className="text-xs p-1 border rounded"
-                              autoFocus
-                            />
                           ) : (
                             <button
                               onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
@@ -1987,7 +1938,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -2000,15 +1951,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 {deletingTask === task.id ? "削除中..." : "削除"}
                               </button>
                             </div>
-                          ) : showDatePicker === task.id ? (
-                            <input
-                              type="date"
-                              defaultValue={new Date().toISOString().split('T')[0]}
-                              onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")}
-                              onBlur={() => setShowDatePicker(null)}
-                              className="text-xs p-1 border rounded"
-                              autoFocus
-                            />
                           ) : (
                             <button
                               onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
