@@ -41,6 +41,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [changingDue, setChangingDue] = useState<Set<string>>(new Set());
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({
     showUserName: true,
     visibleLists: {
@@ -576,7 +577,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     {user.name || user.email}
                   </span>
                   <button
-                    onClick={() => signOut()}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="text-xs lg:text-sm text-gray-500 hover:text-gray-700 text-left leading-tight"
                   >
                     ログアウト
@@ -586,7 +587,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             )}
             {!(user && settings.showUserName) && (
               <button
-                onClick={() => signOut()}
+                onClick={() => setShowLogoutConfirm(true)}
                 className="text-sm text-gray-500 hover:text-gray-700"
               >
                 ログアウト
@@ -1575,6 +1576,28 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           onClose={handleCloseDetail}
           isMobile={isMobile()}
         />
+      )}
+
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-xs w-full p-6">
+            <p className="text-gray-800 text-sm mb-6">ログアウトしますか？</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => signOut()}
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
+              >
+                ログアウト
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
