@@ -98,7 +98,7 @@ export default function TaskDetail({ task, isVisible, position, onClose, isMobil
   if (isMobile) {
     // モバイル版：ダイアログ表示
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
         <div
           ref={detailRef}
           className="bg-white rounded-lg shadow-xl max-w-sm w-full max-h-96 overflow-hidden"
