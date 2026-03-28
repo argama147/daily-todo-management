@@ -1,22 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <defs>
-    <radialGradient id="grad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#307485"/>
-      <stop offset="55%"  stop-color="#338897"/>
-      <stop offset="75%"  stop-color="#2a7f8d"/>
-      <stop offset="88%"  stop-color="#247384"/>
-      <stop offset="100%" stop-color="#1e6b82"/>
-    </radialGradient>
-  </defs>
-
-  <!-- Main circle with gradient -->
-  <circle cx="50" cy="50" r="47" fill="url(#grad)"/>
-
-  <!-- Concentric decorative rings -->
-  <circle cx="50" cy="50" r="41" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/>
-  <circle cx="50" cy="50" r="35" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/>
-  <circle cx="50" cy="50" r="29" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/>
-
-  <!-- Checkmark -->
-  <path d="M33 52 L44 63 L68 37" fill="none" stroke="white" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+  <!-- 透明背景 -->
+  
+  <!-- メインの円形背景（パステルグリーン） -->
+  <circle cx="50" cy="50" r="45" fill="#9ED4B4"/>
+  
+  <!-- 同心円リング（明るいグリーン） -->
+  <circle cx="50" cy="50" r="40" fill="none" stroke="#B5E0C4" stroke-width="2"/>
+  <circle cx="50" cy="50" r="34" fill="none" stroke="#B5E0C4" stroke-width="2"/>
+  <circle cx="50" cy="50" r="28" fill="none" stroke="#C5E8D2" stroke-width="2"/>
+  <circle cx="50" cy="50" r="22" fill="none" stroke="#C5E8D2" stroke-width="2"/>
+  <circle cx="50" cy="50" r="16" fill="none" stroke="#D0ECD8" stroke-width="1.5"/>
+  
+  <!-- チェックマーク（ダークグリーン） -->
+  <polyline 
+    points="30,52 44,66 70,38" 
+    fill="none" 
+    stroke="#2D8B5E" 
+    stroke-width="8" 
+    stroke-linecap="round" 
+    stroke-linejoin="round"
+  />
 </svg>
