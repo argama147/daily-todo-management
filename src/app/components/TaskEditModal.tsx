@@ -3,18 +3,42 @@
 import { useState, useEffect } from "react";
 import type { Task } from "@/lib/tasks";
 
+type TaskList = {
+  id: string;
+  title: string;
+};
+
 type Props = {
   task: Task | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (task: Task, title: string, notes: string, due: string) => Promise<void>;
+  onSave: (task: Task, title: string, notes: string, due: string, newListId?: string) => Promise<void>;
 };
 
 export default function TaskEditModal({ task, isOpen, onClose, onSave }: Props) {
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [due, setDue] = useState("");
+  const [selectedListId, setSelectedListId] = useState("");
+  const [taskLists, setTaskLists] = useState<TaskList[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loadingLists, setLoadingLists] = useState(false);
+
+  // タスクリストを取得
+  const fetchTaskLists = async () => {
+    setLoadingLists(true);
+    try {
+      const response = await fetch("/api/tasks/lists");
+      if (response.ok) {
+        const data = await response.json();
+        setTaskLists(data.lists || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch task lists:", error);
+    } finally {
+      setLoadingLists(false);
+    }
+  };
 
   // モーダルが開かれた時にタスクの値をセット
   useEffect(() => {
@@ -22,8 +46,16 @@ export default function TaskEditModal({ task, isOpen, onClose, onSave }: Props) 
       setTitle(task.title);
       setNotes(task.notes || "");
       setDue(task.due ? task.due.slice(0, 16) : ""); // YYYY-MM-DDTHH:MM形式
+      setSelectedListId(task.listId);
     }
   }, [task]);
+
+  // モーダルが開かれた時にタスクリストを取得
+  useEffect(() => {
+    if (isOpen) {
+      fetchTaskLists();
+    }
+  }, [isOpen]);
 
   if (!isOpen || !task) return null;
 
@@ -37,7 +69,9 @@ export default function TaskEditModal({ task, isOpen, onClose, onSave }: Props) 
     try {
       // 日付形式をISO形式に変換
       const isoDate = due ? `${due}:00.000Z` : task.due;
-      await onSave(task, title.trim(), notes.trim(), isoDate);
+      // リストが変更された場合は新しいリストIDを渡す
+      const newListId = selectedListId !== task.listId ? selectedListId : undefined;
+      await onSave(task, title.trim(), notes.trim(), isoDate, newListId);
       onClose();
     } catch (e) {
       // エラーハンドリングは親コンポーネントで行う
@@ -65,12 +99,27 @@ export default function TaskEditModal({ task, isOpen, onClose, onSave }: Props) 
         <div className="space-y-4">
           {/* タスク種別（リスト名） */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="task-list" className="block text-sm font-medium text-gray-700 mb-1">
               タスク種別
             </label>
-            <div className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
-              {task.listTitle}
-            </div>
+            {loadingLists ? (
+              <div className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+                読み込み中...
+              </div>
+            ) : (
+              <select
+                id="task-list"
+                value={selectedListId}
+                onChange={(e) => setSelectedListId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+              >
+                {taskLists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.title}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* タスク内容 */}
