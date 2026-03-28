@@ -157,8 +157,8 @@ export async function fetchFutureTasks(accessToken: string): Promise<{
             longTerm.push(taskObj);
           }
         }
-      } else {
-        // 期限なしのタスク
+      } else if (task.status !== "completed") {
+        // 期限なしのタスク（完了済みは除外）
         noDeadline.push({
           id: task.id!,
           title: task.title ?? "(タイトルなし)",
