@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { getSettings, saveSettings, createTaskFilterSet, getActiveFilterSet, type AppSettings, type TaskFilterSet } from "@/lib/settings";
+import { buildSettingsShareUrl } from "@/lib/settingsQR";
+import QRCodeModal from "./QRCodeModal";
 import type { Task } from "@/lib/tasks";
 
 interface SettingsModalProps {
@@ -28,6 +30,8 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
   });
   const [newFilterSetName, setNewFilterSetName] = useState('');
   const [showNewFilterSetForm, setShowNewFilterSetForm] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -42,6 +46,11 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
     };
     saveSettings(settingsToSave);
     onClose();
+  };
+
+  const handleOpenQR = () => {
+    setQrUrl(buildSettingsShareUrl(settings));
+    setShowQRCode(true);
   };
 
   const handleCancel = () => {
@@ -144,6 +153,7 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -295,6 +305,18 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
             </div>
           )}
 
+          {/* デバイス間設定同期 */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">デバイス間設定同期</h3>
+            <button
+              onClick={handleOpenQR}
+              className="w-full border border-dashed border-gray-300 rounded-lg p-3 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50"
+            >
+              QRコードで別のデバイスと同期
+            </button>
+            <p className="text-xs text-gray-400 mt-1">現在の設定をQRコードで別のデバイスに送れます</p>
+          </div>
+
           {/* このアプリについて */}
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-3">このアプリについて</h3>
@@ -329,5 +351,7 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
         </div>
       </div>
     </div>
+    <QRCodeModal isOpen={showQRCode} url={qrUrl} onClose={() => setShowQRCode(false)} />
+    </>
   );
 }
