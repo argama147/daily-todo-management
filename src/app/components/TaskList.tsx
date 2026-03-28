@@ -407,7 +407,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     }
   };
 
-  const updateTask = async (task: Task, title: string, notes: string, due: string) => {
+  const updateTask = async (task: Task, title: string, notes: string, due: string, newListId?: string) => {
     try {
       const res = await fetch("/api/tasks", {
         method: "PATCH",
@@ -417,7 +417,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           listId: task.listId, 
           title: title,
           notes: notes,
-          due: due
+          due: due,
+          newListId: newListId
         }),
       });
 

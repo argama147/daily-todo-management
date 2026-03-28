@@ -35,7 +35,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { taskId, listId, status, due, title, notes } = await request.json();
+  const { taskId, listId, status, due, title, notes, newListId } = await request.json();
 
   const oauth2Client = new google.auth.OAuth2();
   oauth2Client.setCredentials({ access_token: session.accessToken });
@@ -43,6 +43,15 @@ export async function PATCH(request: Request) {
   const tasksApi = google.tasks({ version: "v1", auth: oauth2Client });
 
   try {
+    // Handle list change (move task to different list)
+    if (newListId !== undefined && newListId !== listId) {
+      await tasksApi.tasks.move({
+        tasklist: listId,
+        task: taskId,
+        destination: newListId,
+      });
+    }
+
     const requestBody: { 
       status?: string; 
       completed?: null; 
@@ -75,11 +84,17 @@ export async function PATCH(request: Request) {
       requestBody.notes = notes;
     }
 
-    await tasksApi.tasks.patch({
-      tasklist: listId,
-      task: taskId,
-      requestBody,
-    });
+    // Use the target list for patching if task was moved
+    const targetListId = newListId !== undefined ? newListId : listId;
+
+    if (Object.keys(requestBody).length > 0) {
+      await tasksApi.tasks.patch({
+        tasklist: targetListId,
+        task: taskId,
+        requestBody,
+      });
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Google Tasks API error:", err);
