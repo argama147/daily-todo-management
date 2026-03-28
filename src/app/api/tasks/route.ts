@@ -44,22 +44,44 @@ export async function PATCH(request: Request) {
 
   try {
     // Handle list change (move task to different list)
+    // Google Tasks API does not support moving tasks between lists directly.
+    // We must insert into the new list and delete from the old list.
     if (newListId !== undefined && newListId !== listId) {
-      await tasksApi.tasks.move({
-        tasklist: listId,
-        task: taskId,
-        destination: newListId,
-      });
+      const existing = await tasksApi.tasks.get({ tasklist: listId, task: taskId });
+      const existingData = existing.data;
+
+      const insertBody: {
+        title: string;
+        notes?: string;
+        due?: string;
+        status?: string;
+        completed?: string | null;
+      } = {
+        title: title ?? existingData.title ?? "",
+      };
+      if ((notes ?? existingData.notes) !== undefined) insertBody.notes = notes ?? existingData.notes ?? undefined;
+      if ((due ?? existingData.due) !== undefined) insertBody.due = due ?? existingData.due ?? undefined;
+      if (status !== undefined) {
+        insertBody.status = status;
+      } else if (existingData.status) {
+        insertBody.status = existingData.status;
+        if (existingData.completed) insertBody.completed = existingData.completed;
+      }
+
+      await tasksApi.tasks.insert({ tasklist: newListId, requestBody: insertBody });
+      await tasksApi.tasks.delete({ tasklist: listId, task: taskId });
+
+      return NextResponse.json({ success: true });
     }
 
-    const requestBody: { 
-      status?: string; 
-      completed?: null; 
+    const requestBody: {
+      status?: string;
+      completed?: null;
       due?: string;
       title?: string;
       notes?: string;
     } = {};
-    
+
     // Handle status change
     if (status !== undefined) {
       requestBody.status = status;
@@ -68,7 +90,7 @@ export async function PATCH(request: Request) {
         requestBody.completed = null;
       }
     }
-    
+
     // Handle due date change
     if (due !== undefined) {
       requestBody.due = due;
@@ -84,12 +106,9 @@ export async function PATCH(request: Request) {
       requestBody.notes = notes;
     }
 
-    // Use the target list for patching if task was moved
-    const targetListId = newListId !== undefined ? newListId : listId;
-
     if (Object.keys(requestBody).length > 0) {
       await tasksApi.tasks.patch({
-        tasklist: targetListId,
+        tasklist: listId,
         task: taskId,
         requestBody,
       });
