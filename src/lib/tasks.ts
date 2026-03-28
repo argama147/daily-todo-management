@@ -135,9 +135,9 @@ export async function fetchFutureTasks(accessToken: string): Promise<{
 
   for (const { list, items } of allTasksResults) {
     for (const task of items) {
-      if (task.due) {
+      if (task.due && task.status !== "completed") {
         const taskDate = new Date(task.due.slice(0, 10));
-        
+
         if (taskDate > today) {
           const taskObj = {
             id: task.id!,
