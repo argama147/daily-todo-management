@@ -55,7 +55,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           expiresAt: Math.floor(Date.now() / 1000) + refreshed.expires_in,
         };
       } catch (err) {
-        console.error("[auth] Token refresh failed:", err);
+        const errMsg = err instanceof Error ? err.message : JSON.stringify(err);
+        console.error("[auth] Token refresh failed:", errMsg);
         return { ...token, error: "RefreshTokenError" };
       }
     },
