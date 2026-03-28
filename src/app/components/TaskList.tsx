@@ -7,6 +7,8 @@ import type { User } from "next-auth";
 import { getSettings, updateCategoriesFromTasks, getActiveFilterSet, saveSelectedFilterSetId, type AppSettings, type TaskFilterSet } from "@/lib/settings";
 import SettingsModal from "./SettingsModal";
 import TaskDetail from "./TaskDetail";
+import TaskEditModal from "./TaskEditModal";
+import TaskAddModal from "./TaskAddModal";
 
 type Props = {
   initialTasks: Task[];
@@ -40,6 +42,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [activeTab, setActiveTab] = useState<TabKey>("today");
   const [changingDue, setChangingDue] = useState<Set<string>>(new Set());
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
+  const [showTaskMenu, setShowTaskMenu] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [deletingTask, setDeletingTask] = useState<string | null>(null);
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [taskLists, setTaskLists] = useState<{ id: string; title: string }[]>([]);
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [draggedFrom, setDraggedFrom] = useState<"incomplete" | "completed" | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({
@@ -290,6 +299,143 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     }
   };
 
+  const deleteTask = async (task: Task) => {
+    setDeletingTask(task.id);
+    setShowTaskMenu(null);
+
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: task.id, listId: task.listId }),
+      });
+
+      if (!res.ok) throw new Error("タスクの削除に失敗しました");
+
+      // タスクリストを再取得
+      await fetchTasks();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "エラーが発生しました");
+    } finally {
+      setDeletingTask(null);
+    }
+  };
+
+  const updateTask = async (task: Task, title: string, notes: string, due: string) => {
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          taskId: task.id, 
+          listId: task.listId, 
+          title: title,
+          notes: notes,
+          due: due
+        }),
+      });
+
+      if (!res.ok) throw new Error("タスクの更新に失敗しました");
+
+      // タスクリストを再取得
+      await fetchTasks();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "エラーが発生しました");
+      throw e;
+    }
+  };
+
+  const addTask = async (listId: string, title: string, notes: string, due: string) => {
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          listId: listId, 
+          title: title,
+          notes: notes,
+          due: due
+        }),
+      });
+
+      if (!res.ok) throw new Error("タスクの作成に失敗しました");
+
+      // タスクリストを再取得
+      await fetchTasks();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "エラーが発生しました");
+      throw e;
+    }
+  };
+
+  // タスクリスト取得
+  const fetchTaskLists = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tasks/lists");
+      if (!res.ok) throw new Error("タスクリストの取得に失敗しました");
+      
+      const data = await res.json();
+      setTaskLists(data.lists || []);
+    } catch (e) {
+      console.error("Error fetching task lists:", e);
+    }
+  }, []);
+
+  // 初回読み込み時にタスクリストも取得
+  useEffect(() => {
+    fetchTaskLists();
+  }, [fetchTaskLists]);
+
+  // ドラッグ&ドロップ関数
+  const handleDragStart = (e: React.DragEvent, task: Task) => {
+    if (isMobile()) return; // モバイルでは無効
+
+    setDraggedTask(task);
+    
+    // タスクが未完了タスクか完了タスクかを判定
+    if (completedTasks.find(t => t.id === task.id)) {
+      setDraggedFrom("completed");
+    } else {
+      setDraggedFrom("incomplete");
+    }
+
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", task.id);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e: React.DragEvent, dropTarget: "incomplete" | "completed") => {
+    e.preventDefault();
+    
+    if (!draggedTask || !draggedFrom) return;
+
+    // 同じエリアにドロップした場合は何もしない
+    if (draggedFrom === dropTarget) {
+      setDraggedTask(null);
+      setDraggedFrom(null);
+      return;
+    }
+
+    // 完了⇔未完了の切り替え
+    if (dropTarget === "completed" && draggedFrom === "incomplete") {
+      completeTask(draggedTask);
+    } else if (dropTarget === "incomplete" && draggedFrom === "completed") {
+      uncompleteTask(draggedTask);
+    }
+
+    setDraggedTask(null);
+    setDraggedFrom(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTask(null);
+    setDraggedFrom(null);
+  };
+
   // モバイル端末検出
   const isMobile = () => {
     if (typeof window === 'undefined') return false;
@@ -437,6 +583,20 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     };
   }, [isDragging, dragStart, scrollStart]);
 
+  // タスクメニューを外クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showTaskMenu) {
+        setShowTaskMenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTaskMenu]);
+
   // スワイプイベントハンドラー
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!isMobile()) return;
@@ -539,6 +699,17 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             <p className="text-sm text-gray-500">{today}</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* タスク追加ボタン */}
+            <button
+              onClick={() => setShowAddTaskModal(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+              aria-label="タスク追加"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">タスク追加</span>
+            </button>
             {/* デスクトップ: 設定ボタン（歯車アイコン＋テキスト） */}
             <button
               onClick={() => setShowSettings(true)}
@@ -707,8 +878,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               </span>
                             </div>
                           </div>
-                          <div className="flex-shrink-0 ml-2">
-                            {showDatePicker === task.id ? (
+                          <div className="flex-shrink-0 ml-2 relative">
+                            {showTaskMenu === task.id ? (
+                              <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                                >
+                                  編集
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  期限変更
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                  disabled={deletingTask === task.id}
+                                >
+                                  {deletingTask === task.id ? "削除中..." : "削除"}
+                                </button>
+                              </div>
+                            ) : showDatePicker === task.id ? (
                               <input
                                 type="date"
                                 defaultValue={task.due.slice(0, 10)}
@@ -719,12 +912,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               />
                             ) : (
                               <button
-                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }}
-                                disabled={changingDue.has(task.id)}
+                                onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                                disabled={changingDue.has(task.id) || deletingTask === task.id}
                                 className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                aria-label="期限変更"
+                                aria-label="メニュー"
                               >
-                                {changingDue.has(task.id) ? "..." : "︙"}
+                                {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -767,8 +960,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               )}
                             </div>
                           </div>
-                          <div className="flex-shrink-0 ml-2">
-                            {showDatePicker === task.id ? (
+                          <div className="flex-shrink-0 ml-2 relative">
+                            {showTaskMenu === task.id ? (
+                              <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                                >
+                                  編集
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  期限変更
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                  disabled={deletingTask === task.id}
+                                >
+                                  {deletingTask === task.id ? "削除中..." : "削除"}
+                                </button>
+                              </div>
+                            ) : showDatePicker === task.id ? (
                               <input
                                 type="date"
                                 defaultValue={new Date().toISOString().split('T')[0]}
@@ -779,12 +994,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               />
                             ) : (
                               <button
-                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }}
-                                disabled={changingDue.has(task.id)}
+                                onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                                disabled={changingDue.has(task.id) || deletingTask === task.id}
                                 className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                aria-label="期限変更"
+                                aria-label="メニュー"
                               >
-                                {changingDue.has(task.id) ? "..." : "︙"}
+                                {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -848,12 +1063,39 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               </span>
                             </div>
                           </div>
-                          <div className="flex-shrink-0 ml-2">
-                            {showDatePicker === task.id ? (
+                          <div className="flex-shrink-0 ml-2 relative">
+                            {showTaskMenu === task.id ? (
+                              <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                                >
+                                  編集
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  期限変更
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                  disabled={deletingTask === task.id}
+                                >
+                                  {deletingTask === task.id ? "削除中..." : "削除"}
+                                </button>
+                              </div>
+                            ) : showDatePicker === task.id ? (
                               <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
-                              <button onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                                {changingDue.has(task.id) ? "..." : "︙"}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                                disabled={changingDue.has(task.id) || deletingTask === task.id}
+                                className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="メニュー"
+                              >
+                                {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -889,12 +1131,39 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               </span>
                             </div>
                           </div>
-                          <div className="flex-shrink-0 ml-2">
-                            {showDatePicker === task.id ? (
+                          <div className="flex-shrink-0 ml-2 relative">
+                            {showTaskMenu === task.id ? (
+                              <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                                >
+                                  編集
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  期限変更
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                  disabled={deletingTask === task.id}
+                                >
+                                  {deletingTask === task.id ? "削除中..." : "削除"}
+                                </button>
+                              </div>
+                            ) : showDatePicker === task.id ? (
                               <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
-                              <button onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                                {changingDue.has(task.id) ? "..." : "︙"}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                                disabled={changingDue.has(task.id) || deletingTask === task.id}
+                                className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="メニュー"
+                              >
+                                {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -930,12 +1199,39 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                               </span>
                             </div>
                           </div>
-                          <div className="flex-shrink-0 ml-2">
-                            {showDatePicker === task.id ? (
+                          <div className="flex-shrink-0 ml-2 relative">
+                            {showTaskMenu === task.id ? (
+                              <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                                >
+                                  編集
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  期限変更
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                  disabled={deletingTask === task.id}
+                                >
+                                  {deletingTask === task.id ? "削除中..." : "削除"}
+                                </button>
+                              </div>
+                            ) : showDatePicker === task.id ? (
                               <input type="date" defaultValue={task.due.slice(0, 10)} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
-                              <button onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                                {changingDue.has(task.id) ? "..." : "︙"}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                                disabled={changingDue.has(task.id) || deletingTask === task.id}
+                                className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="メニュー"
+                              >
+                                {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -966,12 +1262,39 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             <p className="text-gray-800 font-medium leading-snug break-words">{task.title}</p>
                             <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
                           </div>
-                          <div className="flex-shrink-0 ml-2">
-                            {showDatePicker === task.id ? (
+                          <div className="flex-shrink-0 ml-2 relative">
+                            {showTaskMenu === task.id ? (
+                              <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                                >
+                                  編集
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                                >
+                                  期限変更
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                  disabled={deletingTask === task.id}
+                                >
+                                  {deletingTask === task.id ? "削除中..." : "削除"}
+                                </button>
+                              </div>
+                            ) : showDatePicker === task.id ? (
                               <input type="date" defaultValue={new Date().toISOString().split('T')[0]} onChange={(e) => changeDueDate(task, e.target.value + "T00:00:00.000Z")} onBlur={() => setShowDatePicker(null)} className="text-xs p-1 border rounded" autoFocus />
                             ) : (
-                              <button onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }} disabled={changingDue.has(task.id)} className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                                {changingDue.has(task.id) ? "..." : "︙"}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                                disabled={changingDue.has(task.id) || deletingTask === task.id}
+                                className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="メニュー"
+                              >
+                                {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                               </button>
                             )}
                           </div>
@@ -1030,11 +1353,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     期限切れタスクがここに表示されます
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, "incomplete")}>
                     {filteredExpiredTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 shadow-sm cursor-pointer"
+                        className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 shadow-sm cursor-move"
+                        draggable={!isMobile()}
+                        onDragStart={(e) => handleDragStart(e, task)}
+                        onDragEnd={handleDragEnd}
                         style={
                           completing.has(task.id)
                             ? { animation: "fadeOut 300ms forwards" }
@@ -1071,8 +1397,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             </span>
                           </div>
                         </div>
-                        <div className="flex-shrink-0 ml-2">
-                          {showDatePicker === task.id ? (
+                        <div className="flex-shrink-0 ml-2 relative">
+                          {showTaskMenu === task.id ? (
+                            <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                              >
+                                編集
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                期限変更
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                disabled={deletingTask === task.id}
+                              >
+                                {deletingTask === task.id ? "削除中..." : "削除"}
+                              </button>
+                            </div>
+                          ) : showDatePicker === task.id ? (
                             <input
                               type="date"
                               defaultValue={task.due.slice(0, 10)}
@@ -1083,12 +1431,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             />
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }}
-                              disabled={changingDue.has(task.id)}
+                              onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                              disabled={changingDue.has(task.id) || deletingTask === task.id}
                               className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label="期限変更"
+                              aria-label="メニュー"
                             >
-                              {changingDue.has(task.id) ? "..." : "︙"}
+                              {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -1118,11 +1466,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     すべて完了しました！
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, "incomplete")}>
                     {filteredIncompleteTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm cursor-pointer"
+                        className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm cursor-move"
+                        draggable={!isMobile()}
+                        onDragStart={(e) => handleDragStart(e, task)}
+                        onDragEnd={handleDragEnd}
                         style={
                           completing.has(task.id)
                             ? { animation: "fadeOut 300ms forwards" }
@@ -1154,8 +1505,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             )}
                           </div>
                         </div>
-                        <div className="flex-shrink-0 ml-2">
-                          {showDatePicker === task.id ? (
+                        <div className="flex-shrink-0 ml-2 relative">
+                          {showTaskMenu === task.id ? (
+                            <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                              >
+                                編集
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                期限変更
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                disabled={deletingTask === task.id}
+                              >
+                                {deletingTask === task.id ? "削除中..." : "削除"}
+                              </button>
+                            </div>
+                          ) : showDatePicker === task.id ? (
                             <input
                               type="date"
                               defaultValue={new Date().toISOString().split('T')[0]}
@@ -1166,12 +1539,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             />
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }}
-                              disabled={changingDue.has(task.id)}
+                              onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                              disabled={changingDue.has(task.id) || deletingTask === task.id}
                               className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label="期限変更"
+                              aria-label="メニュー"
                             >
-                              {changingDue.has(task.id) ? "..." : "︙"}
+                              {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -1196,11 +1569,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     完了したタスクがここに表示されます
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, "completed")}>
                     {filteredCompletedTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 shadow-sm opacity-80 cursor-pointer"
+                        className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 shadow-sm opacity-80 cursor-move"
+                        draggable={!isMobile()}
+                        onDragStart={(e) => handleDragStart(e, task)}
+                        onDragEnd={handleDragEnd}
                         style={
                           newlyCompleted.has(task.id)
                             ? { animation: "slideInFromTop 300ms ease-out" }
@@ -1262,11 +1638,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     一週間以内のタスクがここに表示されます
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, "incomplete")}>
                     {filteredFutureTasks.withinWeek.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm cursor-pointer"
+                        className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-sm cursor-move"
+                        draggable={!isMobile()}
+                        onDragStart={(e) => handleDragStart(e, task)}
+                        onDragEnd={handleDragEnd}
                         style={
                           completing.has(task.id)
                             ? { animation: "fadeOut 300ms forwards" }
@@ -1296,8 +1675,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             </span>
                           </div>
                         </div>
-                        <div className="flex-shrink-0 ml-2">
-                          {showDatePicker === task.id ? (
+                        <div className="flex-shrink-0 ml-2 relative">
+                          {showTaskMenu === task.id ? (
+                            <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                              >
+                                編集
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                期限変更
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                disabled={deletingTask === task.id}
+                              >
+                                {deletingTask === task.id ? "削除中..." : "削除"}
+                              </button>
+                            </div>
+                          ) : showDatePicker === task.id ? (
                             <input
                               type="date"
                               defaultValue={task.due.slice(0, 10)}
@@ -1308,12 +1709,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             />
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }}
-                              disabled={changingDue.has(task.id)}
+                              onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                              disabled={changingDue.has(task.id) || deletingTask === task.id}
                               className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label="期限変更"
+                              aria-label="メニュー"
                             >
-                              {changingDue.has(task.id) ? "..." : "︙"}
+                              {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -1338,11 +1739,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     一ヶ月以内のタスクがここに表示されます
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, "incomplete")}>
                     {filteredFutureTasks.withinMonth.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 shadow-sm cursor-pointer"
+                        className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 shadow-sm cursor-move"
+                        draggable={!isMobile()}
+                        onDragStart={(e) => handleDragStart(e, task)}
+                        onDragEnd={handleDragEnd}
                         style={
                           completing.has(task.id)
                             ? { animation: "fadeOut 300ms forwards" }
@@ -1372,8 +1776,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             </span>
                           </div>
                         </div>
-                        <div className="flex-shrink-0 ml-2">
-                          {showDatePicker === task.id ? (
+                        <div className="flex-shrink-0 ml-2 relative">
+                          {showTaskMenu === task.id ? (
+                            <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                              >
+                                編集
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                期限変更
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                disabled={deletingTask === task.id}
+                              >
+                                {deletingTask === task.id ? "削除中..." : "削除"}
+                              </button>
+                            </div>
+                          ) : showDatePicker === task.id ? (
                             <input
                               type="date"
                               defaultValue={task.due.slice(0, 10)}
@@ -1384,12 +1810,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             />
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }}
-                              disabled={changingDue.has(task.id)}
+                              onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                              disabled={changingDue.has(task.id) || deletingTask === task.id}
                               className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label="期限変更"
+                              aria-label="メニュー"
                             >
-                              {changingDue.has(task.id) ? "..." : "︙"}
+                              {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -1414,11 +1840,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     長期タスクがここに表示されます
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, "incomplete")}>
                     {filteredFutureTasks.longTerm.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 shadow-sm cursor-pointer"
+                        className="flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 shadow-sm cursor-move"
+                        draggable={!isMobile()}
+                        onDragStart={(e) => handleDragStart(e, task)}
+                        onDragEnd={handleDragEnd}
                         style={
                           completing.has(task.id)
                             ? { animation: "fadeOut 300ms forwards" }
@@ -1448,8 +1877,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             </span>
                           </div>
                         </div>
-                        <div className="flex-shrink-0 ml-2">
-                          {showDatePicker === task.id ? (
+                        <div className="flex-shrink-0 ml-2 relative">
+                          {showTaskMenu === task.id ? (
+                            <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                              >
+                                編集
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                期限変更
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                disabled={deletingTask === task.id}
+                              >
+                                {deletingTask === task.id ? "削除中..." : "削除"}
+                              </button>
+                            </div>
+                          ) : showDatePicker === task.id ? (
                             <input
                               type="date"
                               defaultValue={task.due.slice(0, 10)}
@@ -1460,12 +1911,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             />
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }}
-                              disabled={changingDue.has(task.id)}
+                              onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                              disabled={changingDue.has(task.id) || deletingTask === task.id}
                               className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label="期限変更"
+                              aria-label="メニュー"
                             >
-                              {changingDue.has(task.id) ? "..." : "︙"}
+                              {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -1490,11 +1941,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     期限なしのタスクがここに表示されます
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, "incomplete")}>
                     {filteredFutureTasks.noDeadline.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 shadow-sm cursor-pointer"
+                        className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 shadow-sm cursor-move"
+                        draggable={!isMobile()}
+                        onDragStart={(e) => handleDragStart(e, task)}
+                        onDragEnd={handleDragEnd}
                         style={
                           completing.has(task.id)
                             ? { animation: "fadeOut 300ms forwards" }
@@ -1519,8 +1973,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             {task.listTitle}
                           </span>
                         </div>
-                        <div className="flex-shrink-0 ml-2">
-                          {showDatePicker === task.id ? (
+                        <div className="flex-shrink-0 ml-2 relative">
+                          {showTaskMenu === task.id ? (
+                            <div className="absolute right-0 top-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                              >
+                                編集
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); setShowTaskMenu(null); }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                期限変更
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteTask(task); }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                disabled={deletingTask === task.id}
+                              >
+                                {deletingTask === task.id ? "削除中..." : "削除"}
+                              </button>
+                            </div>
+                          ) : showDatePicker === task.id ? (
                             <input
                               type="date"
                               defaultValue={new Date().toISOString().split('T')[0]}
@@ -1531,12 +2007,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             />
                           ) : (
                             <button
-                              onClick={(e) => { e.stopPropagation(); setShowDatePicker(task.id); }}
-                              disabled={changingDue.has(task.id)}
+                              onClick={(e) => { e.stopPropagation(); setShowTaskMenu(task.id); }}
+                              disabled={changingDue.has(task.id) || deletingTask === task.id}
                               className="w-8 h-8 flex items-center justify-center text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label="期限変更"
+                              aria-label="メニュー"
                             >
-                              {changingDue.has(task.id) ? "..." : "︙"}
+                              {changingDue.has(task.id) || deletingTask === task.id ? "..." : "︙"}
                             </button>
                           )}
                         </div>
@@ -1577,6 +2053,20 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           isMobile={isMobile()}
         />
       )}
+      
+      <TaskEditModal 
+        task={editingTask}
+        isOpen={!!editingTask}
+        onClose={() => setEditingTask(null)}
+        onSave={updateTask}
+      />
+      
+      <TaskAddModal 
+        isOpen={showAddTaskModal}
+        onClose={() => setShowAddTaskModal(false)}
+        onAdd={addTask}
+        taskLists={taskLists}
+      />
 
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
