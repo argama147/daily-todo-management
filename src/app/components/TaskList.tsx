@@ -4,7 +4,8 @@ import { signOut } from "next-auth/react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Task } from "@/lib/tasks";
 import type { User } from "next-auth";
-import { getSettings, updateCategoriesFromTasks, getActiveFilterSet, saveSelectedFilterSetId, type AppSettings, type TaskFilterSet } from "@/lib/settings";
+import { getSettings, saveSettings, updateCategoriesFromTasks, getActiveFilterSet, saveSelectedFilterSetId, type AppSettings, type TaskFilterSet } from "@/lib/settings";
+import { decodeSettingsFromBase64, SETTINGS_QR_PARAM } from "@/lib/settingsQR";
 import SettingsModal from "./SettingsModal";
 import TaskDetail from "./TaskDetail";
 import TaskEditModal from "./TaskEditModal";
@@ -93,6 +94,24 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     const loadedSettings = getSettings();
     setSettings(loadedSettings);
     setSelectedFilterSetId(loadedSettings.selectedFilterSetId);
+  }, []);
+
+  // URLパラメータから設定をインポート（QRコード同期）
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get(SETTINGS_QR_PARAM);
+    if (!encoded) return;
+
+    const imported = decodeSettingsFromBase64(encoded);
+    if (!imported) {
+      console.warn("QR設定のデコードに失敗しました");
+      return;
+    }
+
+    saveSettings(imported);
+    setSettings(imported);
+    setSelectedFilterSetId(imported.selectedFilterSetId);
+    window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
   // タスクカテゴリーの設定を更新
