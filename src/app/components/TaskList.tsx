@@ -155,6 +155,45 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     noDeadline: filterTasksByCategory(futureTasks.noDeadline),
   };
 
+  // 現在のタブに基づいてフィルタリングされたタスクリストを取得
+  const getFilteredTaskListsForCurrentTab = () => {
+    let currentTabTasks: Task[] = [];
+    
+    switch (activeTab) {
+      case "expired":
+        currentTabTasks = filteredExpiredTasks;
+        break;
+      case "today":
+        currentTabTasks = filteredIncompleteTasks;
+        break;
+      case "completed":
+        currentTabTasks = filteredCompletedTasks;
+        break;
+      case "withinWeek":
+        currentTabTasks = filteredFutureTasks.withinWeek;
+        break;
+      case "withinMonth":
+        currentTabTasks = filteredFutureTasks.withinMonth;
+        break;
+      case "longTerm":
+        currentTabTasks = filteredFutureTasks.longTerm;
+        break;
+      case "noDeadline":
+        currentTabTasks = filteredFutureTasks.noDeadline;
+        break;
+      default:
+        currentTabTasks = filteredIncompleteTasks;
+    }
+
+    // 現在のタブのタスクから固有のタスクリスト種別を抽出
+    const uniqueListTitles = new Set(currentTabTasks.map(task => task.listTitle));
+    
+    // taskListsからマッチするものだけをフィルタリング
+    return taskLists.filter(list => uniqueListTitles.has(list.title));
+  };
+
+  const filteredTaskListsForCurrentTab = getFilteredTaskListsForCurrentTab();
+
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -2021,6 +2060,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         onClose={() => setShowAddTaskModal(false)}
         onAdd={addTask}
         taskLists={taskLists}
+        filteredTaskLists={filteredTaskListsForCurrentTab}
       />
 
       {showLogoutConfirm && (
