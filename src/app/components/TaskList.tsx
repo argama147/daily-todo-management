@@ -195,6 +195,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       });
       setIncompleteTasks((prev) => prev.filter((t) => t.id !== task.id));
       setExpiredTasks((prev) => prev.filter((t) => t.id !== task.id));
+      setFutureTasks((prev) => ({
+        withinWeek: prev.withinWeek.filter((t) => t.id !== task.id),
+        withinMonth: prev.withinMonth.filter((t) => t.id !== task.id),
+        longTerm: prev.longTerm.filter((t) => t.id !== task.id),
+        noDeadline: prev.noDeadline.filter((t) => t.id !== task.id),
+      }));
       setCompletedTasks((prev) => [task, ...prev]);
       setNewlyCompleted((prev) => new Set(prev).add(task.id));
 
@@ -216,6 +222,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         const data = await syncRes.json();
         setIncompleteTasks(data.todayTasks);
         setExpiredTasks(data.expiredTasks);
+        if (data.futureTasks) {
+          setFutureTasks(data.futureTasks);
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
