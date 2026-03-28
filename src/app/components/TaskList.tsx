@@ -166,6 +166,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       const data = await res.json();
       setIncompleteTasks(data.todayTasks ?? []);
       setExpiredTasks(data.expiredTasks ?? []);
+      setCompletedTasks(data.completedTasks ?? []);
+      if (data.futureTasks) {
+        setFutureTasks(data.futureTasks);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
