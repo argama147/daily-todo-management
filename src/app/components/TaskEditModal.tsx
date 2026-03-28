@@ -36,7 +36,7 @@ export default function TaskEditModal({ task, isOpen, onClose, onSave }: Props) 
     setSaving(true);
     try {
       // 日付形式をISO形式に変換
-      const isoDate = due ? new Date(due).toISOString() : task.due;
+      const isoDate = due ? `${due}:00.000Z` : task.due;
       await onSave(task, title.trim(), notes.trim(), isoDate);
       onClose();
     } catch (e) {
