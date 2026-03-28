@@ -36,11 +36,8 @@ export default function LoginButton() {
         Google でログイン
       </button>
       <div className="flex gap-4 text-xs text-gray-400">
-        <a href="/privacy" className="hover:text-gray-600 hover:underline">
-          プライバシーポリシー
-        </a>
-        <a href="/terms" className="hover:text-gray-600 hover:underline">
-          利用規約
+        <a href="/help" className="hover:text-gray-600 hover:underline">
+          ヘルプ・利用規約
         </a>
       </div>
     </div>
