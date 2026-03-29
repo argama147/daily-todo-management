@@ -76,6 +76,26 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
     }));
   };
 
+  const handleToggleAllLists = (turnOn: boolean) => {
+    setSettings(prev => ({
+      ...prev,
+      visibleLists: {
+        expired: turnOn,
+        today: turnOn,
+        completed: turnOn,
+        withinWeek: turnOn,
+        withinMonth: turnOn,
+        longTerm: turnOn,
+        noDeadline: turnOn,
+      },
+    }));
+  };
+
+  // 全てのリストがONかどうかをチェック
+  const areAllListsOn = () => {
+    return Object.values(settings.visibleLists).every(value => value === true);
+  };
+
   const handleToggleCategory = (categoryKey: string) => {
     setSettings(prev => ({
       ...prev,
@@ -101,6 +121,29 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
           : set
       ),
     }));
+  };
+
+  const handleToggleAllFilterSetCategories = (filterSetId: string, turnOn: boolean) => {
+    setSettings(prev => ({
+      ...prev,
+      taskFilterSets: prev.taskFilterSets.map(set =>
+        set.id === filterSetId
+          ? {
+              ...set,
+              categories: Object.keys(set.categories).reduce((acc, key) => {
+                acc[key] = turnOn;
+                return acc;
+              }, {} as Record<string, boolean>),
+            }
+          : set
+      ),
+    }));
+  };
+
+  // フィルターセットの全カテゴリーがONかどうかをチェック
+  const areAllFilterSetCategoriesOn = (filterSet: TaskFilterSet) => {
+    const categoryKeys = Object.keys(filterSet.categories);
+    return categoryKeys.length > 0 && categoryKeys.every(key => filterSet.categories[key] !== false);
   };
 
   const handleAddFilterSet = () => {
@@ -189,7 +232,18 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
 
           {/* リスト表示設定 */}
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-3">表示するリスト</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-700">表示するリスト</h3>
+              <button
+                onClick={() => {
+                  const allOn = areAllListsOn();
+                  handleToggleAllLists(!allOn);
+                }}
+                className="text-xs px-2 py-1 border border-blue-300 rounded text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+              >
+                {areAllListsOn() ? '全てチェックOFF' : '全てチェックON'}
+              </button>
+            </div>
             <div className="space-y-3">
               {[
                 { key: "expired" as const, label: "期限切れタスク" },
@@ -233,14 +287,25 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
                         maxLength={10}
                         className="text-sm font-medium text-gray-700 border border-gray-300 rounded px-2 py-1 flex-1 mr-2"
                       />
-                      {!filterSet.isDefault && (
+                      <div className="flex items-center gap-1">
                         <button
-                          onClick={() => handleDeleteFilterSet(filterSet.id)}
-                          className="text-red-600 hover:text-red-800 text-xs px-2 py-1 border border-red-300 rounded hover:bg-red-50"
+                          onClick={() => {
+                            const allOn = areAllFilterSetCategoriesOn(filterSet);
+                            handleToggleAllFilterSetCategories(filterSet.id, !allOn);
+                          }}
+                          className="text-xs px-2 py-1 border border-blue-300 rounded text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                         >
-                          削除
+                          {areAllFilterSetCategoriesOn(filterSet) ? '全てチェックOFF' : '全てチェックON'}
                         </button>
-                      )}
+                        {!filterSet.isDefault && (
+                          <button
+                            onClick={() => handleDeleteFilterSet(filterSet.id)}
+                            className="text-red-600 hover:text-red-800 text-xs px-2 py-1 border border-red-300 rounded hover:bg-red-50"
+                          >
+                            削除
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       {availableCategories.map((category) => (
