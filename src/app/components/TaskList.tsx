@@ -238,7 +238,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         longTerm: prev.longTerm.filter((t) => t.id !== task.id),
         noDeadline: prev.noDeadline.filter((t) => t.id !== task.id),
       }));
-      setCompletedTasks((prev) => [task, ...prev]);
+      setCompletedTasks((prev) => {
+        if (prev.some((t) => t.id === task.id)) return prev;
+        return [task, ...prev];
+      });
       setNewlyCompleted((prev) => new Set(prev).add(task.id));
 
       setTimeout(() => {
@@ -267,6 +270,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             noDeadline: data.futureTasks.noDeadline.filter((t: Task) => t.id !== task.id),
           });
         }
+        // setTimeoutより先にsyncが完了した場合、completedTasksに未追加の可能性があるため補完
+        setCompletedTasks((prev) => {
+          if (prev.some((t) => t.id === task.id)) return prev;
+          return [task, ...prev];
+        });
       }
       
       // タスク完了の履歴を記録
@@ -298,6 +306,25 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       body: JSON.stringify({ taskId: task.id, listId: task.listId, status: "needsAction" }),
     });
 
+    const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+    const taskDateStr = task.due ? task.due.slice(0, 10) : "";
+    const isExpiredTask = taskDateStr !== "" && taskDateStr < todayStr;
+    const isTodayTask = taskDateStr === todayStr;
+    const isNoDeadlineTask = taskDateStr === "";
+    // isFutureTask = !isExpiredTask && !isTodayTask && !isNoDeadlineTask
+
+    const today = new Date(todayStr);
+    const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const oneMonthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const addToFutureBucket = (prev: { withinWeek: Task[]; withinMonth: Task[]; longTerm: Task[]; noDeadline: Task[] }) => {
+      const taskDate = new Date(taskDateStr);
+      const add = (list: Task[]) => list.some((t) => t.id === task.id) ? list : [task, ...list];
+      if (taskDate <= oneWeekFromNow) return { ...prev, withinWeek: add(prev.withinWeek) };
+      if (taskDate <= oneMonthFromNow) return { ...prev, withinMonth: add(prev.withinMonth) };
+      return { ...prev, longTerm: add(prev.longTerm) };
+    };
+
     setTimeout(() => {
       setUncompleting((prev) => {
         const next = new Set(prev);
@@ -305,13 +332,22 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         return next;
       });
       setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
-      
-      // Add back to appropriate list based on due date
-      const isExpired = new Date(task.due).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) < new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-      if (isExpired) {
-        setExpiredTasks((prev) => [task, ...prev]);
+
+      // 適切なリストに戻す（syncより先に追加済みなら重複しない）
+      if (isExpiredTask) {
+        setExpiredTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [task, ...prev]);
+      } else if (isTodayTask) {
+        setIncompleteTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [task, ...prev]);
+      } else if (isNoDeadlineTask) {
+        setFutureTasks((prev) => ({
+          ...prev,
+          noDeadline: prev.noDeadline.some((t) => t.id === task.id)
+            ? prev.noDeadline
+            : [task, ...prev.noDeadline],
+        }));
       } else {
-        setIncompleteTasks((prev) => [task, ...prev]);
+        // 未来タスク: 期限に応じたバケットへ
+        setFutureTasks(addToFutureBucket);
       }
     }, 300);
 
@@ -322,8 +358,53 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       const syncRes = await fetch("/api/tasks");
       if (syncRes.ok) {
         const data = await syncRes.json();
-        setIncompleteTasks(data.todayTasks);
-        setExpiredTasks(data.expiredTasks);
+        const serverIncomplete = data.todayTasks ?? [];
+        const serverExpired = data.expiredTasks ?? [];
+        // setTimeoutより先にsyncが完了した場合: completedTasksから削除 + 適切なリストに補完
+        setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
+        if (isExpiredTask) {
+          setExpiredTasks(
+            serverExpired.some((t: Task) => t.id === task.id)
+              ? serverExpired
+              : [task, ...serverExpired.filter((t: Task) => t.id !== task.id)]
+          );
+          setIncompleteTasks(serverIncomplete);
+        } else if (isTodayTask) {
+          setIncompleteTasks(
+            serverIncomplete.some((t: Task) => t.id === task.id)
+              ? serverIncomplete
+              : [task, ...serverIncomplete.filter((t: Task) => t.id !== task.id)]
+          );
+          setExpiredTasks(serverExpired);
+        } else {
+          // 未来・期限なしタスク: futureTasks も更新
+          setIncompleteTasks(serverIncomplete);
+          setExpiredTasks(serverExpired);
+          if (data.futureTasks) {
+            const sf = data.futureTasks;
+            const inServer = [
+              ...(sf.withinWeek ?? []),
+              ...(sf.withinMonth ?? []),
+              ...(sf.longTerm ?? []),
+              ...(sf.noDeadline ?? []),
+            ].some((t: Task) => t.id === task.id);
+            if (inServer) {
+              setFutureTasks(sf);
+            } else if (isNoDeadlineTask) {
+              setFutureTasks({
+                ...sf,
+                noDeadline: [task, ...(sf.noDeadline ?? []).filter((t: Task) => t.id !== task.id)],
+              });
+            } else {
+              setFutureTasks(addToFutureBucket({
+                withinWeek: (sf.withinWeek ?? []).filter((t: Task) => t.id !== task.id),
+                withinMonth: (sf.withinMonth ?? []).filter((t: Task) => t.id !== task.id),
+                longTerm: (sf.longTerm ?? []).filter((t: Task) => t.id !== task.id),
+                noDeadline: sf.noDeadline ?? [],
+              }));
+            }
+          }
+        }
       }
       
       // タスク未完了の履歴を記録
@@ -336,13 +417,19 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
-      // On error, restore task to completed list
+      // On error, restore task to completed list and remove from where it was added
       setCompletedTasks((prev) => [task, ...prev]);
-      const isExpired = new Date(task.due).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) < new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-      if (isExpired) {
+      if (isExpiredTask) {
         setExpiredTasks((prev) => prev.filter((t) => t.id !== task.id));
-      } else {
+      } else if (isTodayTask) {
         setIncompleteTasks((prev) => prev.filter((t) => t.id !== task.id));
+      } else {
+        setFutureTasks((prev) => ({
+          withinWeek: prev.withinWeek.filter((t) => t.id !== task.id),
+          withinMonth: prev.withinMonth.filter((t) => t.id !== task.id),
+          longTerm: prev.longTerm.filter((t) => t.id !== task.id),
+          noDeadline: prev.noDeadline.filter((t) => t.id !== task.id),
+        }));
       }
     }
   };
