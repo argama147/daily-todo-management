@@ -257,6 +257,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       const res = await patchPromise;
       if (!res.ok) throw new Error("更新に失敗しました");
 
+      // タスク完了の履歴を記録（PATCH成功直後、sync前に記録）
+      addTaskHistoryItem(
+        "complete",
+        task.id,
+        task.title,
+        { ...task, status: "needsAction" },
+        { ...task, status: "completed" }
+      );
+
       const syncRes = await fetch("/api/tasks");
       if (syncRes.ok) {
         const data = await syncRes.json();
@@ -276,15 +285,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           return [task, ...prev];
         });
       }
-      
-      // タスク完了の履歴を記録
-      addTaskHistoryItem(
-        "complete",
-        task.id,
-        task.title,
-        { ...task, status: "needsAction" },
-        { ...task, status: "completed" }
-      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
       setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
@@ -355,6 +355,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       const res = await patchPromise;
       if (!res.ok) throw new Error("更新に失敗しました");
 
+      // タスク未完了の履歴を記録（PATCH成功直後、sync前に記録）
+      addTaskHistoryItem(
+        "uncomplete",
+        task.id,
+        task.title,
+        { ...task, status: "completed" },
+        { ...task, status: "needsAction" }
+      );
+
       const syncRes = await fetch("/api/tasks");
       if (syncRes.ok) {
         const data = await syncRes.json();
@@ -406,15 +415,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           }
         }
       }
-      
-      // タスク未完了の履歴を記録
-      addTaskHistoryItem(
-        "uncomplete",
-        task.id,
-        task.title,
-        { ...task, status: "completed" },
-        { ...task, status: "needsAction" }
-      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
       // On error, restore task to completed list and remove from where it was added
