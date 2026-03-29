@@ -20,50 +20,38 @@ export interface TaskHistoryItem {
   currentState?: Partial<Task>;  // 操作後のタスクの状態
 }
 
-// Cookie関連の定数
-const HISTORY_COOKIE_KEY = "task_history";
+// localStorage関連の定数
+const HISTORY_STORAGE_KEY = "task_history";
 const MAX_HISTORY_ITEMS = 20;
 
-// Cookieからタスク操作履歴を取得
+// localStorageからタスク操作履歴を取得
 export function getTaskHistory(): TaskHistoryItem[] {
   if (typeof window === "undefined") return [];
-  
+
   try {
-    const cookieValue = document.cookie
-      .split("; ")
-      .find(row => row.startsWith(`${HISTORY_COOKIE_KEY}=`))
-      ?.split("=")[1];
-    
-    if (!cookieValue) return [];
-    
-    const decodedValue = decodeURIComponent(cookieValue);
-    const history = JSON.parse(decodedValue) as TaskHistoryItem[];
-    
+    const value = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!value) return [];
+
+    const history = JSON.parse(value) as TaskHistoryItem[];
+
     // 新しい順にソート
     return history.sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
-    console.error("Failed to parse task history from cookie:", error);
+    console.error("Failed to parse task history from localStorage:", error);
     return [];
   }
 }
 
-// タスク操作履歴をCookieに保存
+// タスク操作履歴をlocalStorageに保存
 export function saveTaskHistory(history: TaskHistoryItem[]): void {
   if (typeof window === "undefined") return;
-  
+
   try {
     // 最新の20件のみ保持
     const limitedHistory = history.slice(0, MAX_HISTORY_ITEMS);
-    const jsonValue = JSON.stringify(limitedHistory);
-    const encodedValue = encodeURIComponent(jsonValue);
-    
-    // Cookieの有効期限を30日に設定
-    const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 30);
-    
-    document.cookie = `${HISTORY_COOKIE_KEY}=${encodedValue}; expires=${expirationDate.toUTCString()}; path=/; SameSite=Lax`;
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(limitedHistory));
   } catch (error) {
-    console.error("Failed to save task history to cookie:", error);
+    console.error("Failed to save task history to localStorage:", error);
   }
 }
 
