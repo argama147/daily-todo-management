@@ -5,11 +5,13 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { Task } from "@/lib/tasks";
 import type { User } from "next-auth";
 import { getSettings, saveSettings, updateCategoriesFromTasks, getActiveFilterSet, saveSelectedFilterSetId, type AppSettings, type TaskFilterSet } from "@/lib/settings";
+import { addTaskHistoryItem, type TaskHistoryItem } from "@/lib/taskHistory";
 import { decodeSettingsFromBase64, SETTINGS_QR_PARAM } from "@/lib/settingsQR";
 import SettingsModal from "./SettingsModal";
 import TaskDetail from "./TaskDetail";
 import TaskEditModal from "./TaskEditModal";
 import TaskAddModal from "./TaskAddModal";
+import TaskHistoryModal from "./TaskHistoryModal";
 
 type Props = {
   initialTasks: Task[];
@@ -48,6 +50,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<string | null>(null);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [taskLists, setTaskLists] = useState<{ id: string; title: string }[]>([]);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [draggedFrom, setDraggedFrom] = useState<"incomplete" | "completed" | null>(null);
@@ -289,6 +292,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           });
         }
       }
+      
+      // タスク完了の履歴を記録
+      addTaskHistoryItem(
+        "complete",
+        task.id,
+        task.title,
+        { ...task, status: "needsAction" },
+        { ...task, status: "completed" }
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
       setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
@@ -337,6 +349,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         setIncompleteTasks(data.todayTasks);
         setExpiredTasks(data.expiredTasks);
       }
+      
+      // タスク未完了の履歴を記録
+      addTaskHistoryItem(
+        "uncomplete",
+        task.id,
+        task.title,
+        { ...task, status: "completed" },
+        { ...task, status: "needsAction" }
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
       // On error, restore task to completed list
@@ -385,6 +406,116 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     }
   };
 
+  // Undo機能のハンドラ
+  const handleUndo = async (historyItem: TaskHistoryItem): Promise<boolean> => {
+    try {
+      const { operation, taskId, previousState, currentState } = historyItem;
+      
+      // 現在のタスク状態を取得
+      const allTasks = [...incompleteTasks, ...expiredTasks, ...completedTasks, ...futureTasks.withinWeek, ...futureTasks.withinMonth, ...futureTasks.longTerm, ...futureTasks.noDeadline];
+      const currentTask = allTasks.find(t => t.id === taskId);
+      
+      if (!currentTask) {
+        console.error("Undo対象のタスクが見つかりません:", taskId);
+        return false;
+      }
+      
+      // 操作に応じてUndo処理を実行
+      switch (operation) {
+        case "complete":
+          // タスク完了のUndo = タスクを未完了にする
+          if (currentTask.status === "completed" && previousState) {
+            await uncompleteTask(currentTask);
+            return true;
+          }
+          break;
+          
+        case "uncomplete":
+          // タスク未完了のUndo = タスクを完了にする
+          if (currentTask.status === "needsAction" && previousState) {
+            await completeTask(currentTask);
+            return true;
+          }
+          break;
+          
+        case "edit":
+          // タスク編集のUndo = 以前の状態に戻す
+          if (previousState && previousState.title) {
+            // タスク編集APIを呼び出し
+            const res = await fetch("/api/tasks", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                taskId: taskId,
+                listId: currentTask.listId,
+                title: previousState.title,
+                notes: previousState.notes || "",
+              }),
+            });
+            
+            if (res.ok) {
+              // UIの更新
+              const updateTask = (task: Task) => 
+                task.id === taskId 
+                  ? { ...task, title: previousState.title!, notes: previousState.notes || "" }
+                  : task;
+              
+              setIncompleteTasks(prev => prev.map(updateTask));
+              setExpiredTasks(prev => prev.map(updateTask));
+              setCompletedTasks(prev => prev.map(updateTask));
+              setFutureTasks(prev => ({
+                withinWeek: prev.withinWeek.map(updateTask),
+                withinMonth: prev.withinMonth.map(updateTask),
+                longTerm: prev.longTerm.map(updateTask),
+                noDeadline: prev.noDeadline.map(updateTask),
+              }));
+              return true;
+            }
+          }
+          break;
+          
+        case "changeDue":
+          // 期限変更のUndo = 以前の期限に戻す
+          if (previousState && previousState.due !== undefined) {
+            const res = await fetch("/api/tasks", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                taskId: taskId,
+                listId: currentTask.listId,
+                due: previousState.due,
+              }),
+            });
+            
+            if (res.ok) {
+              // 期限変更後にタスクリストを再取得
+              const syncRes = await fetch("/api/tasks");
+              if (syncRes.ok) {
+                const data = await syncRes.json();
+                setIncompleteTasks(data.todayTasks || []);
+                setExpiredTasks(data.expiredTasks || []);
+                setCompletedTasks(data.completedTasks || []);
+                if (data.futureTasks) {
+                  setFutureTasks(data.futureTasks);
+                }
+                return true;
+              }
+            }
+          }
+          break;
+          
+        default:
+          console.error("サポートされていないUndo操作:", operation);
+          return false;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Undo操作中にエラーが発生:", error);
+      return false;
+    }
+  };
+
   const deleteTask = async (task: Task) => {
     setDeletingTask(task.id);
     setShowTaskMenu(null);
@@ -397,6 +528,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       });
 
       if (!res.ok) throw new Error("タスクの削除に失敗しました");
+
+      // 削除の履歴を記録（削除前に記録）
+      addTaskHistoryItem(
+        "delete",
+        task.id,
+        task.title,
+        task,
+        undefined
+      );
 
       // タスクリストを再取得
       await fetchTasks();
@@ -424,6 +564,30 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
 
       if (!res.ok) throw new Error("タスクの更新に失敗しました");
 
+      // タスクの更新履歴を記録
+      const hasContentChange = task.title !== title || task.notes !== notes;
+      const hasDueChange = task.due !== due;
+      
+      if (hasContentChange) {
+        addTaskHistoryItem(
+          "edit",
+          task.id,
+          title, // 新しいタイトルを使用
+          { ...task }, // 変更前の状態
+          { ...task, title, notes } // 変更後の状態
+        );
+      }
+      
+      if (hasDueChange) {
+        addTaskHistoryItem(
+          "changeDue",
+          task.id,
+          task.title,
+          { ...task }, // 変更前の状態
+          { ...task, due } // 変更後の状態
+        );
+      }
+
       // タスクリストを再取得
       await fetchTasks();
     } catch (e) {
@@ -449,6 +613,24 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
 
       // タスクリストを再取得
       await fetchTasks();
+      
+      // タスク作成の履歴を記録（作成されたタスクIDを取得するため、APIから新しいタスク情報を取得）
+      const newTaskRes = await fetch("/api/tasks");
+      if (newTaskRes.ok) {
+        const data = await newTaskRes.json();
+        const allNewTasks = [...(data.todayTasks || []), ...(data.expiredTasks || []), ...(data.futureTasks?.withinWeek || []), ...(data.futureTasks?.withinMonth || []), ...(data.futureTasks?.longTerm || []), ...(data.futureTasks?.noDeadline || [])];
+        const createdTask = allNewTasks.find(t => t.title === title && t.listId === listId);
+        
+        if (createdTask) {
+          addTaskHistoryItem(
+            "create",
+            createdTask.id,
+            createdTask.title,
+            undefined,
+            createdTask
+          );
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
       throw e;
@@ -808,6 +990,17 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               <span className="hidden sm:inline">タスク追加</span>
+            </button>
+            {/* 履歴ボタン */}
+            <button
+              onClick={() => setShowHistoryModal(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
+              aria-label="操作履歴"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="hidden sm:inline">履歴</span>
             </button>
             {/* デスクトップ: 設定ボタン（歯車アイコン＋テキスト） */}
             <button
@@ -2086,6 +2279,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         onAdd={addTask}
         taskLists={taskLists}
         filteredTaskLists={filteredTaskListsForCurrentTab}
+      />
+
+      <TaskHistoryModal 
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        onUndo={handleUndo}
       />
 
       {showLogoutConfirm && (
