@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "auth";
 import { google } from "googleapis";
-import { fetchTodayTasks, fetchExpiredTasks, fetchTodayCompletedTasks, fetchFutureTasks } from "@/lib/tasks";
+import { fetchTodayTasks, fetchExpiredTasks, fetchTodayCompletedTasks, fetchFutureTasks, fetchTomorrowTasks } from "@/lib/tasks";
 
 export async function GET() {
   const session = await auth();
@@ -11,13 +11,14 @@ export async function GET() {
   }
 
   try {
-    const [todayTasks, expiredTasks, completedTasks, futureTasks] = await Promise.all([
+    const [todayTasks, expiredTasks, completedTasks, futureTasks, tomorrowTasks] = await Promise.all([
       fetchTodayTasks(session.accessToken as string),
       fetchExpiredTasks(session.accessToken as string),
       fetchTodayCompletedTasks(session.accessToken as string),
       fetchFutureTasks(session.accessToken as string),
+      fetchTomorrowTasks(session.accessToken as string),
     ]);
-    return NextResponse.json({ todayTasks, expiredTasks, completedTasks, futureTasks });
+    return NextResponse.json({ todayTasks, expiredTasks, completedTasks, futureTasks, tomorrowTasks });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Google Tasks API error:", message);
