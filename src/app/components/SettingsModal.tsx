@@ -84,6 +84,7 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
         expired: turnOn,
         today: turnOn,
         completed: turnOn,
+        tomorrow: turnOn,
         withinWeek: turnOn,
         withinMonth: turnOn,
         longTerm: turnOn,
