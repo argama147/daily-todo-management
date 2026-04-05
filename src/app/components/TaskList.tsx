@@ -1413,7 +1413,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                             {showTaskMenu === task.id ? (
                               <div className="absolute right-0 top-0 z-10 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setShowTaskMenu(null); handleEditTask(task); }}
+                                  onClick={(e) => { e.stopPropagation(); setEditingTask(task); setShowTaskMenu(null); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                                 >
                                   編集
