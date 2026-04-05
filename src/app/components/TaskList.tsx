@@ -64,6 +64,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       expired: true,
       today: true,
       completed: true,
+      tomorrow: true,
       withinWeek: true,
       withinMonth: true,
       longTerm: true,
