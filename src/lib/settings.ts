@@ -11,6 +11,7 @@ export interface AppSettings {
     expired: boolean;
     today: boolean;
     completed: boolean;
+    tomorrow: boolean;
     withinWeek: boolean;
     withinMonth: boolean;
     longTerm: boolean;
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     expired: true,
     today: true,
     completed: true,
+    tomorrow: true,
     withinWeek: true,
     withinMonth: true,
     longTerm: true,
@@ -57,6 +59,11 @@ export function getSettings(): AppSettings {
     if (stored) {
       const parsed = JSON.parse(stored);
       const settings = { ...DEFAULT_SETTINGS, ...parsed };
+      
+      // 新しい設定項目の初期化
+      if (!settings.visibleLists.hasOwnProperty('tomorrow')) {
+        settings.visibleLists.tomorrow = true;
+      }
       
       // フィルターセットが存在しない場合は初期化
       if (!settings.taskFilterSets || settings.taskFilterSets.length === 0) {
