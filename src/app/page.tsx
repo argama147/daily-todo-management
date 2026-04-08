@@ -17,13 +17,23 @@ export default async function Home() {
     redirect("/api/auth/signin?provider=google");
   }
 
-  const [tasks, expiredTasks, completedTasks, futureTasks, tomorrowTasks] = await Promise.all([
-    fetchTodayTasks(session.accessToken as string),
-    fetchExpiredTasks(session.accessToken as string),
-    fetchTodayCompletedTasks(session.accessToken as string),
-    fetchFutureTasks(session.accessToken as string),
-    fetchTomorrowTasks(session.accessToken as string),
-  ]);
+  let tasks, expiredTasks, completedTasks, futureTasks, tomorrowTasks;
+  try {
+    [tasks, expiredTasks, completedTasks, futureTasks, tomorrowTasks] = await Promise.all([
+      fetchTodayTasks(session.accessToken as string),
+      fetchExpiredTasks(session.accessToken as string),
+      fetchTodayCompletedTasks(session.accessToken as string),
+      fetchFutureTasks(session.accessToken as string),
+      fetchTomorrowTasks(session.accessToken as string),
+    ]);
+  } catch (err: unknown) {
+    const status = (err as { status?: number; code?: number })?.status ?? (err as { status?: number; code?: number })?.code;
+    if (status === 403) {
+      // スコープ不足 → 再認証（consent画面を強制表示）
+      redirect("/api/auth/signin?provider=google");
+    }
+    throw err;
+  }
 
   return <TaskList initialTasks={tasks} initialExpiredTasks={expiredTasks} initialCompletedTasks={completedTasks} initialFutureTasks={futureTasks} initialTomorrowTasks={tomorrowTasks} user={session.user} />;
 }
