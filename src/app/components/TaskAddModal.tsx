@@ -14,7 +14,8 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists, filter
   const [listId, setListId] = useState("");
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const [due, setDue] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("");
   const [adding, setAdding] = useState(false);
 
   // モーダルが開かれた時にリセット
@@ -24,7 +25,8 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists, filter
       setListId(availableLists.length > 0 ? availableLists[0].id : "");
       setTitle("");
       setNotes("");
-      setDue("");
+      setDueDate("");
+      setDueTime("");
       setAdding(false);
     }
   }, [isOpen, taskLists, filteredTaskLists]);
@@ -44,8 +46,16 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists, filter
 
     setAdding(true);
     try {
-      // 日付形式をISO形式に変換（未入力の場合は空文字のまま渡す）
-      const isoDate = due ? `${due}:00.000Z` : "";
+      // 日付と時刻を組み合わせてISO形式に変換
+      let isoDate = "";
+      if (dueDate) {
+        if (dueTime) {
+          isoDate = `${dueDate}T${dueTime}:00.000Z`;
+        } else {
+          // 時刻が未設定の場合は23:59に設定
+          isoDate = `${dueDate}T23:59:00.000Z`;
+        }
+      }
 
       await onAdd(listId, title.trim(), notes.trim(), isoDate);
       onClose();
@@ -122,22 +132,41 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists, filter
             />
           </div>
 
-          {/* 期限 */}
+          {/* 期限日 */}
           <div>
-            <label htmlFor="add-task-due" className="block text-sm font-medium text-gray-700 mb-1">
-              期限
+            <label htmlFor="add-task-due-date" className="block text-sm font-medium text-gray-700 mb-1">
+              期限日
             </label>
             <input
-              id="add-task-due"
-              type="datetime-local"
-              value={due}
-              onChange={(e) => setDue(e.target.value)}
+              id="add-task-due-date"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
             />
             <div className="text-xs text-gray-500 mt-1">
               未入力の場合は期限なしとして設定されます
             </div>
           </div>
+
+          {/* 期限時刻 */}
+          {dueDate && (
+            <div>
+              <label htmlFor="add-task-due-time" className="block text-sm font-medium text-gray-700 mb-1">
+                期限時刻
+              </label>
+              <input
+                id="add-task-due-time"
+                type="time"
+                value={dueTime}
+                onChange={(e) => setDueTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                未入力の場合は23:59に設定されます
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
