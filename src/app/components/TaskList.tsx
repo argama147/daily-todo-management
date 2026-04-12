@@ -12,6 +12,8 @@ import TaskDetail from "./TaskDetail";
 import TaskEditModal from "./TaskEditModal";
 import TaskAddModal from "./TaskAddModal";
 import TaskHistoryModal from "./TaskHistoryModal";
+import DateChangeDetector from "./DateChangeDetector";
+import DateChangePopup from "./DateChangePopup";
 
 type Props = {
   initialTasks: Task[];
@@ -75,6 +77,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     selectedFilterSetId: 'default',
   });
   const [selectedFilterSetId, setSelectedFilterSetId] = useState<string>('default');
+  
+  // 日付変更検出関連の状態
+  const [showDateChangePopup, setShowDateChangePopup] = useState(false);
+  const [isDateChangeUpdating, setIsDateChangeUpdating] = useState(false);
   
   // スワイプ・ドラッグ関連の状態
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -730,6 +736,53 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   useEffect(() => {
     fetchTaskLists();
   }, [fetchTaskLists]);
+
+  // 編集中の全状態をクリアする関数
+  const clearAllEditingStates = useCallback(() => {
+    setEditingTask(null);
+    setShowAddTaskModal(false);
+    setShowSettings(false);
+    setShowHistoryModal(false);
+    setShowTaskMenu(null);
+    setDatePickerTask(null);
+    setShowLogoutConfirm(false);
+    setSelectedTask(null);
+    setDetailPosition(null);
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+    setIsSwiping(false);
+    setIsDragging(false);
+    setTouchStart(null);
+    setTouchEnd(null);
+    setDragStart(null);
+    setDraggedTask(null);
+    setDraggedFrom(null);
+  }, [longPressTimer]);
+
+  // 日付変更検出時の処理
+  const handleDateChange = useCallback(() => {
+    // まず編集状態をクリア
+    clearAllEditingStates();
+    // ポップアップ表示
+    setShowDateChangePopup(true);
+  }, [clearAllEditingStates]);
+
+  // 日付変更ポップアップのOK処理
+  const handleDateChangeConfirm = useCallback(async () => {
+    setIsDateChangeUpdating(true);
+    try {
+      // タスクリストとタスクリスト一覧を更新
+      await Promise.all([fetchTasks(), fetchTaskLists()]);
+    } catch (error) {
+      console.error("日付変更時の更新エラー:", error);
+      setError("更新中にエラーが発生しました");
+    } finally {
+      setIsDateChangeUpdating(false);
+      setShowDateChangePopup(false);
+    }
+  }, [fetchTasks, fetchTaskLists]);
 
   // ドラッグ&ドロップ関数
   const handleDragStart = (e: React.DragEvent, task: Task) => {
@@ -2541,6 +2594,19 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           </div>
         </div>
       )}
+
+      {/* 日付変更検出 */}
+      <DateChangeDetector 
+        onDateChange={handleDateChange}
+        isEnabled={!showDateChangePopup && !isDateChangeUpdating}
+      />
+
+      {/* 日付変更ポップアップ */}
+      <DateChangePopup 
+        isOpen={showDateChangePopup}
+        onConfirm={handleDateChangeConfirm}
+        isUpdating={isDateChangeUpdating}
+      />
     </div>
   );
 }
