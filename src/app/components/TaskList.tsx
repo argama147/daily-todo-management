@@ -159,6 +159,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     });
   };
 
+  // タスクの詳細の1行目を取得するヘルパー関数
+  const getFirstLineOfNotes = (notes?: string): string => {
+    if (!notes || notes.trim() === '') return '';
+    
+    // 改行で分割して最初の行を取得
+    const firstLine = notes.trim().split(/\r?\n/)[0];
+    return firstLine.trim();
+  };
+
   // フィルターセット切り替えハンドラー
   const handleFilterSetChange = (filterSetId: string) => {
     setSelectedFilterSetId(filterSetId);
@@ -1239,6 +1248,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <button onClick={(e) => { e.stopPropagation(); completeTask(task); }} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-red-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
                             <p className="text-red-800 font-medium leading-snug break-words">{task.title}</p>
+                            {getFirstLineOfNotes(task.notes) && (
+                              <p className="text-red-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                            )}
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className="text-xs text-red-500 bg-red-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               <span className="text-xs text-red-600 bg-red-200 rounded px-2 py-0.5 font-medium">
@@ -1311,6 +1323,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <button onClick={(e) => { e.stopPropagation(); completeTask(task); }} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-800 font-medium leading-snug break-words">{task.title}</p>
+                            {getFirstLineOfNotes(task.notes) && (
+                              <p className="text-gray-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                            )}
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               {hasTime(task.due) && (
@@ -1404,6 +1419,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <button onClick={(e) => { e.stopPropagation(); completeTask(task); }} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-orange-300 hover:border-orange-500 hover:bg-orange-50 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-800 font-medium leading-snug break-words">{task.title}</p>
+                            {getFirstLineOfNotes(task.notes) && (
+                              <p className="text-orange-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                            )}
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-xs text-orange-600 bg-orange-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               {task.due && <span className="text-xs text-orange-500">明日</span>}
@@ -1469,6 +1487,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <button onClick={(e) => { e.stopPropagation(); completeTask(task); }} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-blue-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
                             <p className="text-blue-800 font-medium leading-snug break-words">{task.title}</p>
+                            {getFirstLineOfNotes(task.notes) && (
+                              <p className="text-blue-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                            )}
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className="text-xs text-blue-500 bg-blue-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               <span className="text-xs text-blue-600 bg-blue-200 rounded px-2 py-0.5 font-medium">
@@ -1535,6 +1556,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <button onClick={(e) => { e.stopPropagation(); completeTask(task); }} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-orange-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
                             <p className="text-orange-800 font-medium leading-snug break-words">{task.title}</p>
+                            {getFirstLineOfNotes(task.notes) && (
+                              <p className="text-orange-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                            )}
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className="text-xs text-orange-500 bg-orange-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               <span className="text-xs text-orange-600 bg-orange-200 rounded px-2 py-0.5 font-medium">
@@ -1601,6 +1625,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <button onClick={(e) => { e.stopPropagation(); completeTask(task); }} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-purple-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
                             <p className="text-purple-800 font-medium leading-snug break-words">{task.title}</p>
+                            {getFirstLineOfNotes(task.notes) && (
+                              <p className="text-purple-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                            )}
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className="text-xs text-purple-500 bg-purple-100 rounded px-2 py-0.5">{task.listTitle}</span>
                               <span className="text-xs text-purple-600 bg-purple-200 rounded px-2 py-0.5 font-medium">
@@ -1667,6 +1694,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <button onClick={(e) => { e.stopPropagation(); completeTask(task); }} disabled={completing.has(task.id)} className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label="完了にする" />
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-800 font-medium leading-snug break-words">{task.title}</p>
+                            {getFirstLineOfNotes(task.notes) && (
+                              <p className="text-gray-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                            )}
                             <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">{task.listTitle}</span>
                           </div>
                           <div className="flex-shrink-0 ml-2 relative">
@@ -1786,6 +1816,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <p className="text-red-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
+                          {getFirstLineOfNotes(task.notes) && (
+                            <p className="text-red-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                          )}
                           <div className="mt-1 flex flex-wrap gap-1">
                             <span className="text-xs text-red-500 bg-red-100 rounded px-2 py-0.5">
                               {task.listTitle}
@@ -1890,6 +1923,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <p className="text-gray-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
+                          {getFirstLineOfNotes(task.notes) && (
+                            <p className="text-gray-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                          )}
                           <div className="mt-1 flex flex-wrap gap-1">
                             <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
                               {task.listTitle}
@@ -1984,6 +2020,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <p className="text-orange-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
+                          {getFirstLineOfNotes(task.notes) && (
+                            <p className="text-orange-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                          )}
                           <div className="mt-1 flex flex-wrap gap-1">
                             <span className="text-xs text-orange-600 bg-orange-100 rounded px-2 py-0.5">
                               {task.listTitle}
@@ -2147,6 +2186,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <p className="text-blue-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
+                          {getFirstLineOfNotes(task.notes) && (
+                            <p className="text-blue-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                          )}
                           <div className="mt-1 flex flex-wrap gap-1">
                             <span className="text-xs text-blue-500 bg-blue-100 rounded px-2 py-0.5">
                               {task.listTitle}
@@ -2239,6 +2281,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <p className="text-orange-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
+                          {getFirstLineOfNotes(task.notes) && (
+                            <p className="text-orange-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                          )}
                           <div className="mt-1 flex flex-wrap gap-1">
                             <span className="text-xs text-orange-500 bg-orange-100 rounded px-2 py-0.5">
                               {task.listTitle}
@@ -2331,6 +2376,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <p className="text-purple-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
+                          {getFirstLineOfNotes(task.notes) && (
+                            <p className="text-purple-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                          )}
                           <div className="mt-1 flex flex-wrap gap-1">
                             <span className="text-xs text-purple-500 bg-purple-100 rounded px-2 py-0.5">
                               {task.listTitle}
@@ -2423,6 +2471,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           <p className="text-gray-800 font-medium leading-snug break-words">
                             {task.title}
                           </p>
+                          {getFirstLineOfNotes(task.notes) && (
+                            <p className="text-gray-600 text-sm mt-1 truncate">{getFirstLineOfNotes(task.notes)}</p>
+                          )}
                           <span className="inline-block mt-1 text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5">
                             {task.listTitle}
                           </span>
