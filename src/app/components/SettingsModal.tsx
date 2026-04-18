@@ -22,7 +22,6 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
       tomorrow: true,
       withinWeek: true,
       withinMonth: true,
-      longTerm: true,
       noDeadline: true,
     },
     visibleCategories: {},
@@ -87,7 +86,6 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
         tomorrow: turnOn,
         withinWeek: turnOn,
         withinMonth: turnOn,
-        longTerm: turnOn,
         noDeadline: turnOn,
       },
     }));
@@ -254,7 +252,6 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
                 { key: "tomorrow" as const, label: "明日のタスク" },
                 { key: "withinWeek" as const, label: "一週間以内のタスク" },
                 { key: "withinMonth" as const, label: "一ヶ月以内のタスク" },
-                { key: "longTerm" as const, label: "長期タスク" },
                 { key: "noDeadline" as const, label: "期限なしタスク" },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center">

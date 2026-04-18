@@ -14,7 +14,6 @@ export interface AppSettings {
     tomorrow: boolean;
     withinWeek: boolean;
     withinMonth: boolean;
-    longTerm: boolean;
     noDeadline: boolean;
   };
   visibleCategories: Record<string, boolean>;
@@ -38,7 +37,6 @@ const DEFAULT_SETTINGS: AppSettings = {
     tomorrow: true,
     withinWeek: true,
     withinMonth: true,
-    longTerm: true,
     noDeadline: true,
   },
   visibleCategories: {},

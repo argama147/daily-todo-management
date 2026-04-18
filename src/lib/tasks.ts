@@ -150,7 +150,6 @@ export async function fetchTomorrowTasks(accessToken: string): Promise<Task[]> {
 export async function fetchFutureTasks(accessToken: string): Promise<{
   withinWeek: Task[];
   withinMonth: Task[];
-  longTerm: Task[];
   noDeadline: Task[];
 }> {
   const oauth2Client = new google.auth.OAuth2();
@@ -176,11 +175,9 @@ export async function fetchFutureTasks(accessToken: string): Promise<{
   const today = new Date(todayStr);
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
   const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const oneMonthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
 
   const withinWeek: Task[] = [];
   const withinMonth: Task[] = [];
-  const longTerm: Task[] = [];
   const noDeadline: Task[] = [];
 
   for (const { list, items } of allTasksResults) {
@@ -201,10 +198,8 @@ export async function fetchFutureTasks(accessToken: string): Promise<{
 
           if (taskDate > tomorrow && taskDate <= oneWeekFromNow) {
             withinWeek.push(taskObj);
-          } else if (taskDate <= oneMonthFromNow) {
-            withinMonth.push(taskObj);
           } else {
-            longTerm.push(taskObj);
+            withinMonth.push(taskObj);
           }
         }
       } else if (task.status !== "completed") {
@@ -225,7 +220,6 @@ export async function fetchFutureTasks(accessToken: string): Promise<{
   return {
     withinWeek: withinWeek.sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime()),
     withinMonth: withinMonth.sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime()),
-    longTerm: longTerm.sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime()),
     noDeadline,
   };
 }
