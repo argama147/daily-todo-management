@@ -946,18 +946,24 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   // デスクトップでのマウスドラッグスクロール
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isMobile()) return;
-    
+
+    // draggable なカード（またはその子要素）上で押下した場合は、
+    // ネイティブ HTML5 ドラッグを優先するためスクロールドラッグを開始しない。
+    // preventDefault() を呼ぶと dragstart が発火しなくなるため、ここで抜ける。
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('[draggable="true"]')) return;
+
     const container = containerRef.current;
     if (!container) return;
-    
+
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
     setScrollStart({ left: container.scrollLeft, top: container.scrollTop });
-    
+
     // カーソルを掴み状態に変更
     document.body.style.cursor = 'grabbing';
     document.body.style.userSelect = 'none';
-    
+
     e.preventDefault();
   };
 
