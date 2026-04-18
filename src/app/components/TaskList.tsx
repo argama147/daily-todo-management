@@ -49,6 +49,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [activeTab, setActiveTab] = useState<TabKey>("today");
   const [changingDue, setChangingDue] = useState<Set<string>>(new Set());
   const [datePickerTask, setDatePickerTask] = useState<Task | null>(null);
+  const [datePickerPos, setDatePickerPos] = useState({ x: 0, y: 0 });
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [showTaskMenu, setShowTaskMenu] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -462,12 +463,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     }
   };
 
-  const openDatePicker = (task: Task) => {
+  const openDatePicker = (task: Task, e: React.MouseEvent) => {
     setDatePickerTask(task);
     setShowTaskMenu(null);
+    setDatePickerPos({ x: e.clientX, y: e.clientY });
     if (datePickerRef.current) {
       datePickerRef.current.value = task.due ? task.due.slice(0, 10) : new Date().toISOString().split('T')[0];
-      datePickerRef.current.showPicker();
+      setTimeout(() => datePickerRef.current?.showPicker(), 0);
     }
   };
 
@@ -1102,7 +1104,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       <input
         ref={datePickerRef}
         type="date"
-        className="sr-only"
+        style={{
+          position: 'fixed',
+          left: datePickerPos.x,
+          top: datePickerPos.y,
+          opacity: 0,
+          width: 1,
+          height: 1,
+          pointerEvents: 'none',
+        }}
         onChange={(e) => {
           if (datePickerTask && e.target.value) {
             changeDueDate(datePickerTask, e.target.value + "T00:00:00.000Z");
@@ -1322,7 +1332,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1398,7 +1408,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1490,7 +1500,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setShowTaskMenu(null); setDatePickerTask(task); setTimeout(() => datePickerRef.current?.showPicker(), 100); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                                   disabled={changingDue.has(task.id)}
                                 >
@@ -1560,7 +1570,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1629,7 +1639,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1698,7 +1708,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1762,7 +1772,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                   編集
                                 </button>
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                  onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                                 >
                                   期限変更
@@ -1898,7 +1908,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -2000,7 +2010,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -2097,7 +2107,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -2261,7 +2271,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -2356,7 +2366,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -2451,7 +2461,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
@@ -2541,7 +2551,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                                 編集
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); openDatePicker(task); }}
+                                onClick={(e) => { e.stopPropagation(); openDatePicker(task, e); }}
                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                               >
                                 期限変更
