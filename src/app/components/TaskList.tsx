@@ -2586,6 +2586,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           ...incompleteTasks,
           ...expiredTasks,
           ...completedTasks,
+          ...tomorrowTasks,
           ...futureTasks.withinWeek,
           ...futureTasks.withinMonth,
           ...futureTasks.longTerm,
