@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "auth";
-import { google } from "googleapis";
-import { fetchTodayTasks, fetchExpiredTasks, fetchTodayCompletedTasks, fetchFutureTasks, fetchTomorrowTasks } from "@/lib/tasks";
+import { fetchTodayTasks, fetchExpiredTasks, fetchTodayCompletedTasks, fetchFutureTasks, fetchTomorrowTasks, createTasksApi } from "@/lib/tasks";
 
 export async function GET() {
   const session = await auth();
@@ -38,10 +37,7 @@ export async function PATCH(request: Request) {
 
   const { taskId, listId, status, due, title, notes, newListId } = await request.json();
 
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: session.accessToken });
-
-  const tasksApi = google.tasks({ version: "v1", auth: oauth2Client });
+  const tasksApi = createTasksApi(session.accessToken as string);
 
   try {
     // Handle list change (move task to different list)
@@ -138,10 +134,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Title and listId are required" }, { status: 400 });
   }
 
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: session.accessToken });
-
-  const tasksApi = google.tasks({ version: "v1", auth: oauth2Client });
+  const tasksApi = createTasksApi(session.accessToken as string);
 
   try {
     const requestBody: { 
@@ -186,10 +179,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "TaskId and listId are required" }, { status: 400 });
   }
 
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: session.accessToken });
-
-  const tasksApi = google.tasks({ version: "v1", auth: oauth2Client });
+  const tasksApi = createTasksApi(session.accessToken as string);
 
   try {
     await tasksApi.tasks.delete({
