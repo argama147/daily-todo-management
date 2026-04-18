@@ -59,6 +59,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [taskLists, setTaskLists] = useState<{ id: string; title: string }[]>([]);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [draggedFrom, setDraggedFrom] = useState<TabKey | null>(null);
+  const draggedTaskRef = useRef<Task | null>(null);
+  const draggedFromRef = useRef<TabKey | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<TabKey | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -813,12 +815,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   };
 
   const isDropAllowed = (target: TabKey) => {
-    if (!draggedFrom) return false;
-    return (ALLOWED_DROPS[draggedFrom] ?? []).includes(target);
+    const from = draggedFromRef.current ?? draggedFrom;
+    if (!from) return false;
+    return (ALLOWED_DROPS[from] ?? []).includes(target);
   };
 
   const handleDragStart = (e: React.DragEvent, task: Task, fromTab: TabKey) => {
     if (isMobile()) return;
+    draggedTaskRef.current = task;
+    draggedFromRef.current = fromTab;
     setDraggedTask(task);
     setDraggedFrom(fromTab);
     e.dataTransfer.effectAllowed = "move";
@@ -842,25 +847,33 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     e.preventDefault();
     setDragOverTarget(null);
 
-    if (!draggedTask || !draggedFrom) return;
-    if (!isDropAllowed(dropTarget)) {
+    const task = draggedTaskRef.current ?? draggedTask;
+    const from = draggedFromRef.current ?? draggedFrom;
+    if (!task || !from) return;
+    if (!(ALLOWED_DROPS[from] ?? []).includes(dropTarget)) {
+      draggedTaskRef.current = null;
+      draggedFromRef.current = null;
       setDraggedTask(null);
       setDraggedFrom(null);
       return;
     }
 
-    if (dropTarget === "completed") {
-      await completeTask(draggedTask);
-    } else {
-      const newDue = getDueDateForCategory(dropTarget);
-      await changeDueDate(draggedTask, newDue);
-    }
-
+    draggedTaskRef.current = null;
+    draggedFromRef.current = null;
     setDraggedTask(null);
     setDraggedFrom(null);
+
+    if (dropTarget === "completed") {
+      await completeTask(task);
+    } else {
+      const newDue = getDueDateForCategory(dropTarget);
+      await changeDueDate(task, newDue);
+    }
   };
 
   const handleDragEnd = () => {
+    draggedTaskRef.current = null;
+    draggedFromRef.current = null;
     setDraggedTask(null);
     setDraggedFrom(null);
     setDragOverTarget(null);
