@@ -833,8 +833,9 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   };
 
   const handleDragOver = (e: React.DragEvent, target: TabKey) => {
+    if (!isDropAllowed(target)) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = isDropAllowed(target) ? "move" : "none";
+    e.dataTransfer.dropEffect = "move";
     setDragOverTarget(target);
   };
 
@@ -1796,12 +1797,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             >
               {/* 期限切れカラム */}
               {settings.visibleLists.expired && (
-              <div
-                onDragOver={(e) => handleDragOver(e, "expired")}
-                onDrop={(e) => handleDrop(e, "expired")}
-                onDragLeave={handleDragLeave}
-                className={dragOverTarget === "expired" && isDropAllowed("expired") ? "ring-2 ring-red-400 rounded-lg" : ""}
-              >
+              <div>
                 <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-3">
                   期限切れタスク{" "}
                   <span className="font-normal text-red-400">
@@ -2387,7 +2383,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 onDragOver={(e) => handleDragOver(e, "noDeadline")}
                 onDrop={(e) => handleDrop(e, "noDeadline")}
                 onDragLeave={handleDragLeave}
-                className={dragOverTarget === "noDeadline" ? "ring-2 ring-gray-400 rounded-lg" : ""}
+                className={dragOverTarget === "noDeadline" && isDropAllowed("noDeadline") ? "ring-2 ring-gray-400 rounded-lg" : ""}
               >
                 <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
                   期限なし{" "}
