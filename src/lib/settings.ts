@@ -14,7 +14,6 @@ export interface AppSettings {
     tomorrow: boolean;
     withinWeek: boolean;
     withinMonth: boolean;
-    longTerm: boolean;
     noDeadline: boolean;
   };
   visibleCategories: Record<string, boolean>;
@@ -38,7 +37,6 @@ const DEFAULT_SETTINGS: AppSettings = {
     tomorrow: true,
     withinWeek: true,
     withinMonth: true,
-    longTerm: true,
     noDeadline: true,
   },
   visibleCategories: {},
@@ -58,13 +56,13 @@ export function getSettings(): AppSettings {
     const stored = getCookie(SETTINGS_COOKIE_NAME);
     if (stored) {
       const parsed = JSON.parse(stored);
-      const settings = { ...DEFAULT_SETTINGS, ...parsed };
-      
-      // 新しい設定項目の初期化
-      if (!settings.visibleLists.hasOwnProperty('tomorrow')) {
-        settings.visibleLists.tomorrow = true;
-      }
-      
+      // visibleLists を深くマージすることで、新しいキーがデフォルト値で自動的に補完される
+      const settings = {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+        visibleLists: { ...DEFAULT_SETTINGS.visibleLists, ...(parsed.visibleLists ?? {}) },
+      };
+
       // フィルターセットが存在しない場合は初期化
       if (!settings.taskFilterSets || settings.taskFilterSets.length === 0) {
         settings.taskFilterSets = [DEFAULT_FILTER_SET];
