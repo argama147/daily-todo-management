@@ -16,7 +16,6 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists, filter
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
-  const [adding, setAdding] = useState(false);
 
   // モーダルが開かれた時にリセット
   useEffect(() => {
@@ -27,13 +26,12 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists, filter
       setNotes("");
       setDueDate("");
       setDueTime("");
-      setAdding(false);
     }
   }, [isOpen, taskLists, filteredTaskLists]);
 
   if (!isOpen) return null;
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     if (!title.trim()) {
       alert("タスク内容を入力してください");
       return;
@@ -44,26 +42,21 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists, filter
       return;
     }
 
-    setAdding(true);
-    try {
-      // 日付と時刻を組み合わせてISO形式に変換
-      let isoDate = "";
-      if (dueDate) {
-        if (dueTime) {
-          isoDate = `${dueDate}T${dueTime}:00.000Z`;
-        } else {
-          // 時刻が未設定の場合は23:59に設定
-          isoDate = `${dueDate}T23:59:00.000Z`;
-        }
+    // 日付と時刻を組み合わせてISO形式に変換
+    let isoDate = "";
+    if (dueDate) {
+      if (dueTime) {
+        isoDate = `${dueDate}T${dueTime}:00.000Z`;
+      } else {
+        // 時刻が未設定の場合は23:59に設定
+        isoDate = `${dueDate}T23:59:00.000Z`;
       }
-
-      await onAdd(listId, title.trim(), notes.trim(), isoDate);
-      onClose();
-    } catch (e) {
-      // エラーハンドリングは親コンポーネントで行う
-    } finally {
-      setAdding(false);
     }
+
+    // モーダルを即座に閉じ、追加処理はバックグラウンドで継続
+    // （エラーは親コンポーネントの setError で処理される）
+    onClose();
+    void onAdd(listId, title.trim(), notes.trim(), isoDate).catch(() => {});
   };
 
   return (
@@ -172,17 +165,16 @@ export default function TaskAddModal({ isOpen, onClose, onAdd, taskLists, filter
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onClose}
-            disabled={adding}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
           >
             キャンセル
           </button>
           <button
             onClick={handleAdd}
-            disabled={adding || !title.trim()}
+            disabled={!title.trim()}
             className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {adding ? "追加中..." : "追加"}
+            追加
           </button>
         </div>
       </div>
