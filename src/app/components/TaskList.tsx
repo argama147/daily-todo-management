@@ -9,7 +9,7 @@ import { addTaskHistoryItem, type TaskHistoryItem } from "@/lib/taskHistory";
 import { decodeSettingsFromBase64, SETTINGS_QR_PARAM } from "@/lib/settingsQR";
 import { getFirstLineOfNotes, hasTime, formatDateTime } from "@/lib/dateUtils";
 import SettingsModal from "./SettingsModal";
-import TaskCard from "./TaskCard";
+import TaskCard, { type TaskCardVariant } from "./TaskCard";
 import TaskDetail from "./TaskDetail";
 import TaskEditModal from "./TaskEditModal";
 import TaskAddModal from "./TaskAddModal";
@@ -52,6 +52,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [datePickerPos, setDatePickerPos] = useState({ x: 0, y: 0 });
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [showTaskMenu, setShowTaskMenu] = useState<string | null>(null);
+  // 同一タスクが複数カラムに表示される場合にメニューが同時に開くのを避けるため、
+  // variant（カラム種別）と task.id の複合キーで管理する
+  const menuKey = (taskId: string, v: TaskCardVariant) => `${v}:${taskId}`;
+  const isTaskMenuOpen = (taskId: string, v: TaskCardVariant) => showTaskMenu === menuKey(taskId, v);
+  const toggleTaskMenu = (taskId: string, v: TaskCardVariant) => {
+    const k = menuKey(taskId, v);
+    setShowTaskMenu((cur) => (cur === k ? null : k));
+  };
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<string | null>(null);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
@@ -1312,10 +1320,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     <div className="space-y-2">
                       {filteredExpiredTasks.map((task) => (
                         <TaskCard key={task.id} task={task} variant="expired"
-                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "expired")}
                           onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                           onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                          onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                          onMenuToggle={() => toggleTaskMenu(task.id, "expired")}
                         />
                       ))}
                     </div>
@@ -1335,10 +1343,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     <div className="space-y-2">
                       {filteredIncompleteTasks.map((task) => (
                         <TaskCard key={task.id} task={task} variant="today"
-                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "today")}
                           onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                           onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                          onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                          onMenuToggle={() => toggleTaskMenu(task.id, "today")}
                         />
                       ))}
                     </div>
@@ -1375,10 +1383,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     <div className="space-y-2">
                       {filteredTomorrowTasks.map((task) => (
                         <TaskCard key={task.id} task={task} variant="tomorrow"
-                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "tomorrow")}
                           onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                           onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                          onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                          onMenuToggle={() => toggleTaskMenu(task.id, "tomorrow")}
                         />
                       ))}
                     </div>
@@ -1396,10 +1404,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     <div className="space-y-2">
                       {filteredFutureTasks.withinWeek.map((task) => (
                         <TaskCard key={task.id} task={task} variant="withinWeek"
-                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "withinWeek")}
                           onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                           onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                          onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                          onMenuToggle={() => toggleTaskMenu(task.id, "withinWeek")}
                         />
                       ))}
                     </div>
@@ -1417,10 +1425,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     <div className="space-y-2">
                       {filteredFutureTasks.withinMonth.map((task) => (
                         <TaskCard key={task.id} task={task} variant="withinMonth"
-                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "withinMonth")}
                           onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                           onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                          onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                          onMenuToggle={() => toggleTaskMenu(task.id, "withinMonth")}
                         />
                       ))}
                     </div>
@@ -1438,10 +1446,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                     <div className="space-y-2">
                       {filteredFutureTasks.noDeadline.map((task) => (
                         <TaskCard key={task.id} task={task} variant="noDeadline"
-                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "noDeadline")}
                           onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                           onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                          onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                          onMenuToggle={() => toggleTaskMenu(task.id, "noDeadline")}
                         />
                       ))}
                     </div>
@@ -1500,11 +1508,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   <div className="space-y-2">
                     {filteredExpiredTasks.map((task) => (
                       <TaskCard key={task.id} task={task} variant="expired"
-                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "expired")}
                         draggable={!isMobile()} onDragStart={(e) => handleDragStart(e, task, "expired")} onDragEnd={handleDragEnd}
                         onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                         onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                        onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                        onMenuToggle={() => toggleTaskMenu(task.id, "expired")}
                       />
                     ))}
                   </div>
@@ -1539,11 +1547,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   <div className="space-y-2">
                     {filteredIncompleteTasks.map((task) => (
                       <TaskCard key={task.id} task={task} variant="today"
-                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "today")}
                         draggable={!isMobile()} onDragStart={(e) => handleDragStart(e, task, "today")} onDragEnd={handleDragEnd}
                         onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                         onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                        onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                        onMenuToggle={() => toggleTaskMenu(task.id, "today")}
                       />
                     ))}
                   </div>
@@ -1573,11 +1581,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   <div className="space-y-2">
                     {filteredTomorrowTasks.map((task) => (
                       <TaskCard key={task.id} task={task} variant="tomorrow"
-                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "tomorrow")}
                         draggable={!isMobile()} onDragStart={(e) => handleDragStart(e, task, "tomorrow")} onDragEnd={handleDragEnd}
                         onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                         onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                        onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                        onMenuToggle={() => toggleTaskMenu(task.id, "tomorrow")}
                       />
                     ))}
                   </div>
@@ -1639,11 +1647,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   <div className="space-y-2">
                     {filteredFutureTasks.withinWeek.map((task) => (
                       <TaskCard key={task.id} task={task} variant="withinWeek"
-                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "withinWeek")}
                         draggable={!isMobile()} onDragStart={(e) => handleDragStart(e, task, "withinWeek")} onDragEnd={handleDragEnd}
                         onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                         onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                        onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                        onMenuToggle={() => toggleTaskMenu(task.id, "withinWeek")}
                       />
                     ))}
                   </div>
@@ -1673,11 +1681,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   <div className="space-y-2">
                     {filteredFutureTasks.withinMonth.map((task) => (
                       <TaskCard key={task.id} task={task} variant="withinMonth"
-                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "withinMonth")}
                         draggable={!isMobile()} onDragStart={(e) => handleDragStart(e, task, "withinMonth")} onDragEnd={handleDragEnd}
                         onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                         onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                        onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                        onMenuToggle={() => toggleTaskMenu(task.id, "withinMonth")}
                       />
                     ))}
                   </div>
@@ -1707,11 +1715,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   <div className="space-y-2">
                     {filteredFutureTasks.noDeadline.map((task) => (
                       <TaskCard key={task.id} task={task} variant="noDeadline"
-                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={showTaskMenu === task.id}
+                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isDeleting={deletingTask === task.id} isMenuOpen={isTaskMenuOpen(task.id, "noDeadline")}
                         draggable={!isMobile()} onDragStart={(e) => handleDragStart(e, task, "noDeadline")} onDragEnd={handleDragEnd}
                         onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                         onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                        onMenuToggle={() => setShowTaskMenu(showTaskMenu === task.id ? null : task.id)}
+                        onMenuToggle={() => toggleTaskMenu(task.id, "noDeadline")}
                       />
                     ))}
                   </div>
