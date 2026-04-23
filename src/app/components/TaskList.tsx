@@ -880,11 +880,75 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     setDraggedTask(null);
     setDraggedFrom(null);
 
+    // 楽観的更新: 元バケットから即時除去し、移動先バケットに即時追加
+    const removeFromBucket = (tab: TabKey) => {
+      switch (tab) {
+        case "expired":     setExpiredTasks((p) => p.filter((t) => t.id !== task.id)); break;
+        case "today":       setIncompleteTasks((p) => p.filter((t) => t.id !== task.id)); break;
+        case "tomorrow":    setTomorrowTasks((p) => p.filter((t) => t.id !== task.id)); break;
+        case "completed":   setCompletedTasks((p) => p.filter((t) => t.id !== task.id)); break;
+        case "withinWeek":  setFutureTasks((p) => ({ ...p, withinWeek: p.withinWeek.filter((t) => t.id !== task.id) })); break;
+        case "withinMonth": setFutureTasks((p) => ({ ...p, withinMonth: p.withinMonth.filter((t) => t.id !== task.id) })); break;
+        case "noDeadline":  setFutureTasks((p) => ({ ...p, noDeadline: p.noDeadline.filter((t) => t.id !== task.id) })); break;
+      }
+    };
+
+    removeFromBucket(from);
+
     if (dropTarget === "completed") {
-      await completeTask(task);
+      const updatedTask: Task = { ...task, status: "completed" };
+      setCompletedTasks((p) => (p.some((t) => t.id === task.id) ? p : [updatedTask, ...p]));
+
+      try {
+        const res = await fetch("/api/tasks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId: task.id, listId: task.listId, status: "completed" }),
+        });
+        if (!res.ok) throw new Error("更新に失敗しました");
+
+        addTaskHistoryItem(
+          "complete",
+          task.id,
+          task.title,
+          { ...task, status: "needsAction" },
+          updatedTask
+        );
+        fetchTasks();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "エラーが発生しました");
+        fetchTasks();
+      }
     } else {
-      const newDue = getDueDateForCategory(dropTarget);
-      await changeDueDate(task, newDue);
+      const newDue = getDueDateForCategory(dropTarget) ?? "";
+      const updatedTask: Task = { ...task, due: newDue };
+
+      const addToBucket = (tab: TabKey) => {
+        switch (tab) {
+          case "today":       setIncompleteTasks((p) => (p.some((t) => t.id === task.id) ? p : [updatedTask, ...p])); break;
+          case "tomorrow":    setTomorrowTasks((p) => (p.some((t) => t.id === task.id) ? p : [updatedTask, ...p])); break;
+          case "withinWeek":  setFutureTasks((p) => ({ ...p, withinWeek: p.withinWeek.some((t) => t.id === task.id) ? p.withinWeek : [updatedTask, ...p.withinWeek] })); break;
+          case "withinMonth": setFutureTasks((p) => ({ ...p, withinMonth: p.withinMonth.some((t) => t.id === task.id) ? p.withinMonth : [updatedTask, ...p.withinMonth] })); break;
+          case "noDeadline":  setFutureTasks((p) => ({ ...p, noDeadline: p.noDeadline.some((t) => t.id === task.id) ? p.noDeadline : [updatedTask, ...p.noDeadline] })); break;
+        }
+      };
+
+      addToBucket(dropTarget);
+
+      try {
+        const res = await fetch("/api/tasks", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId: task.id, listId: task.listId, due: newDue }),
+        });
+        if (!res.ok) throw new Error("期限の変更に失敗しました");
+
+        addTaskHistoryItem("changeDue", task.id, task.title, { ...task }, updatedTask);
+        fetchTasks();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "エラーが発生しました");
+        fetchTasks();
+      }
     }
   };
 
