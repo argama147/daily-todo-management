@@ -22,7 +22,6 @@ export default function TaskEditModal({ task, isOpen, onClose, onSave }: Props) 
   const [dueTime, setDueTime] = useState("");
   const [selectedListId, setSelectedListId] = useState("");
   const [taskLists, setTaskLists] = useState<TaskList[]>([]);
-  const [saving, setSaving] = useState(false);
   const [loadingLists, setLoadingLists] = useState(false);
 
   // タスクリストを取得
@@ -73,36 +72,32 @@ export default function TaskEditModal({ task, isOpen, onClose, onSave }: Props) 
 
   if (!isOpen || !task) return null;
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!title.trim()) {
       alert("タスク名を入力してください");
       return;
     }
 
-    setSaving(true);
-    try {
-      // 日付と時刻を組み合わせてISO形式に変換
-      let isoDate = task.due; // デフォルトは既存の値
-      if (dueDate) {
-        if (dueTime) {
-          isoDate = `${dueDate}T${dueTime}:00.000Z`;
-        } else {
-          // 時刻が未設定の場合は23:59に設定
-          isoDate = `${dueDate}T23:59:00.000Z`;
-        }
-      } else if (dueDate === "") {
-        // 日付が空の場合は期限をクリア
-        isoDate = "";
+    // 日付と時刻を組み合わせてISO形式に変換
+    let isoDate = task.due; // デフォルトは既存の値
+    if (dueDate) {
+      if (dueTime) {
+        isoDate = `${dueDate}T${dueTime}:00.000Z`;
+      } else {
+        // 時刻が未設定の場合は23:59に設定
+        isoDate = `${dueDate}T23:59:00.000Z`;
       }
-      // リストが変更された場合は新しいリストIDを渡す
-      const newListId = selectedListId !== task.listId ? selectedListId : undefined;
-      await onSave(task, title.trim(), notes.trim(), isoDate, newListId);
-      onClose();
-    } catch (e) {
-      // エラーハンドリングは親コンポーネントで行う
-    } finally {
-      setSaving(false);
+    } else if (dueDate === "") {
+      // 日付が空の場合は期限をクリア
+      isoDate = "";
     }
+    // リストが変更された場合は新しいリストIDを渡す
+    const newListId = selectedListId !== task.listId ? selectedListId : undefined;
+
+    // モーダルを即座に閉じ、保存処理はバックグラウンドで継続
+    // （エラーは親コンポーネントの setError で処理される）
+    onClose();
+    void onSave(task, title.trim(), notes.trim(), isoDate, newListId).catch(() => {});
   };
 
   return (
@@ -217,17 +212,16 @@ export default function TaskEditModal({ task, isOpen, onClose, onSave }: Props) 
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50"
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
           >
             キャンセル
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || !title.trim()}
+            disabled={!title.trim()}
             className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "保存中..." : "保存"}
+            保存
           </button>
         </div>
       </div>
