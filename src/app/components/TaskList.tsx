@@ -1593,6 +1593,38 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               </div>
               )}
 
+              {/* 完了カラム */}
+              {settings.visibleLists.completed && (
+              <div
+                onDragOver={(e) => handleDragOver(e, "completed")}
+                onDrop={(e) => handleDrop(e, "completed")}
+                onDragLeave={handleDragLeave}
+                className={dragOverTarget === "completed" && isDropAllowed("completed") ? "ring-2 ring-green-400 rounded-lg" : ""}
+              >
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  完了したタスク{" "}
+                  <span className="font-normal text-gray-400">
+                    ({filteredCompletedTasks.length}件)
+                  </span>
+                </h2>
+                {filteredCompletedTasks.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                    完了したタスクがここに表示されます
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredCompletedTasks.map((task) => (
+                      <TaskCard key={task.id} task={task} variant="completed"
+                        isUncompleting={uncompleting.has(task.id)} isNewlyCompleted={newlyCompleted.has(task.id)}
+                        onUncomplete={() => uncompleteTask(task)}
+                        onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              )}
+
               {/* 未完了カラム */}
               {settings.visibleLists.today && (
               <div
@@ -1666,37 +1698,6 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               </div>
               )}
 
-              {/* 完了カラム */}
-              {settings.visibleLists.completed && (
-              <div
-                onDragOver={(e) => handleDragOver(e, "completed")}
-                onDrop={(e) => handleDrop(e, "completed")}
-                onDragLeave={handleDragLeave}
-                className={dragOverTarget === "completed" && isDropAllowed("completed") ? "ring-2 ring-green-400 rounded-lg" : ""}
-              >
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  完了したタスク{" "}
-                  <span className="font-normal text-gray-400">
-                    ({filteredCompletedTasks.length}件)
-                  </span>
-                </h2>
-                {filteredCompletedTasks.length === 0 ? (
-                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
-                    完了したタスクがここに表示されます
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredCompletedTasks.map((task) => (
-                      <TaskCard key={task.id} task={task} variant="completed"
-                        isUncompleting={uncompleting.has(task.id)} isNewlyCompleted={newlyCompleted.has(task.id)}
-                        onUncomplete={() => uncompleteTask(task)}
-                        onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-              )}
 
               {/* 一週間以内カラム */}
               {settings.visibleLists.withinWeek && (
