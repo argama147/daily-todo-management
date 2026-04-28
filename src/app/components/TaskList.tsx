@@ -69,6 +69,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const draggedTaskRef = useRef<Task | null>(null);
   const draggedFromRef = useRef<TabKey | null>(null);
   const [dragOverTarget, setDragOverTarget] = useState<TabKey | null>(null);
+  // 連続ドロップ時のレース防止:
+  //   - taskOpGenerationRef: fetchTasks の世代番号。新しい操作（特に新たなドロップ）が
+  //     入った時点で in-flight の GET レスポンスを無効化する
+  //   - dragInFlightRef: 進行中のドロップ PATCH 数。バースト中は最後の1回だけ
+  //     fetchTasks を撃つようコアレスする
+  const taskOpGenerationRef = useRef(0);
+  const dragInFlightRef = useRef(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({
@@ -211,15 +218,21 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const filteredTaskListsForCurrentTab = getFilteredTaskListsForCurrentTab();
 
   const fetchTasks = useCallback(async () => {
+    // 世代番号: 同時に複数の fetchTasks が in-flight になった場合、
+    // または fetchTasks 中に新たなドロップ等が入った場合、
+    // 古いレスポンスでローカル状態を上書きしないようガードする
+    const gen = ++taskOpGenerationRef.current;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/tasks");
+      if (gen !== taskOpGenerationRef.current) return; // 古い世代 → 破棄
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail ?? "タスクの取得に失敗しました");
       }
       const data = await res.json();
+      if (gen !== taskOpGenerationRef.current) return; // 古い世代 → 破棄
       setIncompleteTasks(data.todayTasks ?? []);
       setExpiredTasks(data.expiredTasks ?? []);
       setCompletedTasks(data.completedTasks ?? []);
@@ -228,9 +241,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         setFutureTasks(data.futureTasks);
       }
     } catch (e) {
+      if (gen !== taskOpGenerationRef.current) return; // 古い世代のエラーは握り潰す
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
-      setLoading(false);
+      if (gen === taskOpGenerationRef.current) setLoading(false);
     }
   }, []);
 
@@ -880,6 +894,20 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     setDraggedTask(null);
     setDraggedFrom(null);
 
+    // 進行中の fetchTasks があれば、その応答が後で楽観的更新を上書きするのを防ぐため
+    // 世代番号をインクリメントして無効化する
+    taskOpGenerationRef.current++;
+    dragInFlightRef.current += 1;
+
+    const finalizeDragSync = () => {
+      dragInFlightRef.current -= 1;
+      // 連続ドロップを 1 回の fetchTasks にコアレスする (Google Tasks API 負荷軽減 +
+      // PATCH_A 完了後 PATCH_B 完了前に GET が走って B が一瞬戻る現象を防止)
+      if (dragInFlightRef.current === 0) {
+        fetchTasks();
+      }
+    };
+
     // 楽観的更新: 元バケットから即時除去し、移動先バケットに即時追加
     const removeFromBucket = (tab: TabKey) => {
       switch (tab) {
@@ -914,10 +942,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           { ...task, status: "needsAction" },
           updatedTask
         );
-        fetchTasks();
       } catch (err) {
         setError(err instanceof Error ? err.message : "エラーが発生しました");
-        fetchTasks();
+      } finally {
+        finalizeDragSync();
       }
     } else {
       const newDue = getDueDateForCategory(dropTarget) ?? "";
@@ -944,10 +972,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         if (!res.ok) throw new Error("期限の変更に失敗しました");
 
         addTaskHistoryItem("changeDue", task.id, task.title, { ...task }, updatedTask);
-        fetchTasks();
       } catch (err) {
         setError(err instanceof Error ? err.message : "エラーが発生しました");
-        fetchTasks();
+      } finally {
+        finalizeDragSync();
       }
     }
   };
