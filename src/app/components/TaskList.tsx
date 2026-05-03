@@ -76,6 +76,33 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   //     fetchTasks を撃つようコアレスする
   const taskOpGenerationRef = useRef(0);
   const dragInFlightRef = useRef(0);
+  // ドラッグ大量操作時のスロットリング:
+  //   - 並列 PATCH を最大 DRAG_CONCURRENCY 件に制限し、Google Tasks API の
+  //     レート制限と並列 OAuth refresh による異常検知（unknownerror ロックアウト）を回避
+  const DRAG_CONCURRENCY = 2;
+  const dragQueueRef = useRef<Array<() => Promise<void>>>([]);
+  const dragActiveRef = useRef(0);
+  const pumpDragQueue = useCallback(() => {
+    while (
+      dragActiveRef.current < DRAG_CONCURRENCY &&
+      dragQueueRef.current.length > 0
+    ) {
+      const op = dragQueueRef.current.shift();
+      if (!op) break;
+      dragActiveRef.current++;
+      op().finally(() => {
+        dragActiveRef.current--;
+        pumpDragQueue();
+      });
+    }
+  }, []);
+  const enqueueDragOp = useCallback(
+    (op: () => Promise<void>) => {
+      dragQueueRef.current.push(op);
+      pumpDragQueue();
+    },
+    [pumpDragQueue]
+  );
   const [showSettings, setShowSettings] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({
@@ -921,32 +948,52 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       }
     };
 
+    // PATCH 失敗時のロールバック: 移動先から除去し、元バケットに復元
+    const restoreToBucket = (tab: TabKey, original: Task) => {
+      switch (tab) {
+        case "expired":     setExpiredTasks((p) => (p.some((t) => t.id === original.id) ? p : [original, ...p])); break;
+        case "today":       setIncompleteTasks((p) => (p.some((t) => t.id === original.id) ? p : [original, ...p])); break;
+        case "tomorrow":    setTomorrowTasks((p) => (p.some((t) => t.id === original.id) ? p : [original, ...p])); break;
+        case "completed":   setCompletedTasks((p) => (p.some((t) => t.id === original.id) ? p : [original, ...p])); break;
+        case "withinWeek":  setFutureTasks((p) => ({ ...p, withinWeek: p.withinWeek.some((t) => t.id === original.id) ? p.withinWeek : [original, ...p.withinWeek] })); break;
+        case "withinMonth": setFutureTasks((p) => ({ ...p, withinMonth: p.withinMonth.some((t) => t.id === original.id) ? p.withinMonth : [original, ...p.withinMonth] })); break;
+        case "noDeadline":  setFutureTasks((p) => ({ ...p, noDeadline: p.noDeadline.some((t) => t.id === original.id) ? p.noDeadline : [original, ...p.noDeadline] })); break;
+      }
+    };
+
     removeFromBucket(from);
 
     if (dropTarget === "completed") {
       const updatedTask: Task = { ...task, status: "completed" };
       setCompletedTasks((p) => (p.some((t) => t.id === task.id) ? p : [updatedTask, ...p]));
 
-      try {
-        const res = await fetch("/api/tasks", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taskId: task.id, listId: task.listId, status: "completed" }),
-        });
-        if (!res.ok) throw new Error("更新に失敗しました");
+      // 並列 PATCH を制限してキュー経由で送信（バースト時の OAuth ロックと
+      // Google Tasks API レート制限を防止）
+      enqueueDragOp(async () => {
+        try {
+          const res = await fetch("/api/tasks", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId: task.id, listId: task.listId, status: "completed" }),
+          });
+          if (!res.ok) throw new Error("更新に失敗しました");
 
-        addTaskHistoryItem(
-          "complete",
-          task.id,
-          task.title,
-          { ...task, status: "needsAction" },
-          updatedTask
-        );
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "エラーが発生しました");
-      } finally {
-        finalizeDragSync();
-      }
+          addTaskHistoryItem(
+            "complete",
+            task.id,
+            task.title,
+            { ...task, status: "needsAction" },
+            updatedTask
+          );
+        } catch (err) {
+          // ロールバック: completed から除去し、元バケットへ復元
+          setCompletedTasks((p) => p.filter((t) => t.id !== task.id));
+          restoreToBucket(from, task);
+          setError(err instanceof Error ? err.message : "エラーが発生しました");
+        } finally {
+          finalizeDragSync();
+        }
+      });
     } else {
       const newDue = getDueDateForCategory(dropTarget) ?? "";
       const updatedTask: Task = { ...task, due: newDue };
@@ -961,22 +1008,39 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         }
       };
 
+      // 移動先バケットからタスクを除去するヘルパー（ロールバック用）
+      const removeFromTarget = (tab: TabKey) => {
+        switch (tab) {
+          case "today":       setIncompleteTasks((p) => p.filter((t) => t.id !== task.id)); break;
+          case "tomorrow":    setTomorrowTasks((p) => p.filter((t) => t.id !== task.id)); break;
+          case "withinWeek":  setFutureTasks((p) => ({ ...p, withinWeek: p.withinWeek.filter((t) => t.id !== task.id) })); break;
+          case "withinMonth": setFutureTasks((p) => ({ ...p, withinMonth: p.withinMonth.filter((t) => t.id !== task.id) })); break;
+          case "noDeadline":  setFutureTasks((p) => ({ ...p, noDeadline: p.noDeadline.filter((t) => t.id !== task.id) })); break;
+        }
+      };
+
       addToBucket(dropTarget);
 
-      try {
-        const res = await fetch("/api/tasks", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taskId: task.id, listId: task.listId, due: newDue }),
-        });
-        if (!res.ok) throw new Error("期限の変更に失敗しました");
+      // 並列 PATCH を制限してキュー経由で送信
+      enqueueDragOp(async () => {
+        try {
+          const res = await fetch("/api/tasks", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId: task.id, listId: task.listId, due: newDue }),
+          });
+          if (!res.ok) throw new Error("期限の変更に失敗しました");
 
-        addTaskHistoryItem("changeDue", task.id, task.title, { ...task }, updatedTask);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "エラーが発生しました");
-      } finally {
-        finalizeDragSync();
-      }
+          addTaskHistoryItem("changeDue", task.id, task.title, { ...task }, updatedTask);
+        } catch (err) {
+          // ロールバック: 移動先から除去し、元バケットへ復元
+          removeFromTarget(dropTarget);
+          restoreToBucket(from, task);
+          setError(err instanceof Error ? err.message : "エラーが発生しました");
+        } finally {
+          finalizeDragSync();
+        }
+      });
     }
   };
 
