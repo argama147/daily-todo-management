@@ -74,8 +74,13 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   //     入った時点で in-flight の GET レスポンスを無効化する
   //   - dragInFlightRef: 進行中のドロップ PATCH 数。バースト中は最後の1回だけ
   //     fetchTasks を撃つようコアレスする
+  //   - fetchInFlightRef / fetchPendingRef: GET /api/tasks の並走防止。in-flight 中に
+  //     再要求が来たら pending フラグを立て、完了直後に1回だけ追加実行する。
+  //     これにより Google Tasks API のレート制限ヒットを抑える。
   const taskOpGenerationRef = useRef(0);
   const dragInFlightRef = useRef(0);
+  const fetchInFlightRef = useRef(false);
+  const fetchPendingRef = useRef(false);
   // ドラッグ大量操作時のスロットリング:
   //   - 並列 PATCH を最大 DRAG_CONCURRENCY 件に制限し、Google Tasks API の
   //     レート制限と並列 OAuth refresh による異常検知（unknownerror ロックアウト）を回避
@@ -245,8 +250,15 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const filteredTaskListsForCurrentTab = getFilteredTaskListsForCurrentTab();
 
   const fetchTasks = useCallback(async () => {
-    // 世代番号: 同時に複数の fetchTasks が in-flight になった場合、
-    // または fetchTasks 中に新たなドロップ等が入った場合、
+    // 既に GET /api/tasks が in-flight の場合は新規発行せず、pending フラグだけ立てる。
+    // 完了後に必要なら1回だけ追加実行することで、複数の重い GET が並走して
+    // Google Tasks API のレート制限を引き起こすのを防ぐ。
+    if (fetchInFlightRef.current) {
+      fetchPendingRef.current = true;
+      return;
+    }
+    fetchInFlightRef.current = true;
+    // 世代番号: fetchTasks 中に新たなドロップ等が入った場合、
     // 古いレスポンスでローカル状態を上書きしないようガードする
     const gen = ++taskOpGenerationRef.current;
     setLoading(true);
@@ -272,6 +284,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {
       if (gen === taskOpGenerationRef.current) setLoading(false);
+      fetchInFlightRef.current = false;
+      if (fetchPendingRef.current) {
+        fetchPendingRef.current = false;
+        // 次のマイクロタスクで再実行（バースト中の最終状態に同期させる）
+        setTimeout(() => fetchTasks(), 0);
+      }
     }
   }, []);
 
