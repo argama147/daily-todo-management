@@ -30,13 +30,12 @@ export function createTasksApi(accessToken: string) {
 
 type TasksApi = ReturnType<typeof createTasksApi>;
 
-/** 全タスクリストの items を一括取得する */
-async function fetchAllTaskItems(
+/** 与えられたタスクリスト群について tasks.list を並列発行する */
+async function fetchListItemsForLists(
   tasksApi: TasksApi,
+  lists: RawList[],
   options: { showCompleted?: boolean; showHidden?: boolean } = {}
 ): Promise<Array<{ list: RawList; items: RawTask[] }>> {
-  const listsRes = await tasksApi.tasklists.list({ maxResults: 100 });
-  const lists = listsRes.data.items ?? [];
   return Promise.all(
     lists.map((list) =>
       tasksApi.tasks
@@ -46,7 +45,7 @@ async function fetchAllTaskItems(
           showCompleted: options.showCompleted ?? false,
           ...(options.showHidden ? { showHidden: true } : {}),
         })
-        .then((res) => ({ list: list as RawList, items: (res.data.items ?? []) as RawTask[] }))
+        .then((res) => ({ list, items: (res.data.items ?? []) as RawTask[] }))
     )
   );
 }
@@ -64,110 +63,98 @@ function toTask(task: RawTask, list: RawList, dueFallback = ""): Task {
   };
 }
 
-export async function fetchTodayTasks(accessToken: string): Promise<Task[]> {
-  const tasksApi = createTasksApi(accessToken);
-  const allTasksResults = await fetchAllTaskItems(tasksApi);
-  const todayStr = getTodayJST();
-  const result: Task[] = [];
-  for (const { list, items } of allTasksResults) {
-    for (const task of items) {
-      if (task.due?.slice(0, 10) === todayStr) {
-        result.push(toTask(task, list));
-      }
-    }
-  }
-  return result;
-}
+export type CategorizedTasks = {
+  todayTasks: Task[];
+  expiredTasks: Task[];
+  completedTasks: Task[];
+  tomorrowTasks: Task[];
+  futureTasks: {
+    withinWeek: Task[];
+    withinMonth: Task[];
+    noDeadline: Task[];
+  };
+};
 
-export async function fetchExpiredTasks(accessToken: string): Promise<Task[]> {
+/**
+ * 1 回のタスクリスト一覧取得 + 2 セット（未完了 / 当日完了向け）の tasks.list で
+ * 全カテゴリのタスクをまとめて取得・分類する。
+ *
+ * 旧実装は分類ごとに fetchAllTaskItems を 5 回呼んでおり、リスト数 N に対し
+ * `5 + 5N` 件の Google Tasks API 並列呼び出しが発生してレート制限に
+ * ぶつかりやすかった。本関数は `1 + 2N` 件まで削減する。
+ */
+export async function fetchAllCategorizedTasks(accessToken: string): Promise<CategorizedTasks> {
   const tasksApi = createTasksApi(accessToken);
-  const allTasksResults = await fetchAllTaskItems(tasksApi);
-  const todayStr = getTodayJST();
-  const result: Task[] = [];
-  for (const { list, items } of allTasksResults) {
-    for (const task of items) {
-      if (task.due && task.due.slice(0, 10) < todayStr) {
-        result.push(toTask(task, list));
-      }
-    }
-  }
-  return result;
-}
+  const listsRes = await tasksApi.tasklists.list({ maxResults: 100 });
+  const lists = (listsRes.data.items ?? []) as RawList[];
 
-export async function fetchTomorrowTasks(accessToken: string): Promise<Task[]> {
-  const tasksApi = createTasksApi(accessToken);
-  const allTasksResults = await fetchAllTaskItems(tasksApi);
-  const todayStr = getTodayJST();
-  const tomorrowStr = new Date(new Date(todayStr).getTime() + 86400000).toLocaleDateString("sv-SE", {
-    timeZone: "Asia/Tokyo",
-  });
-  const result: Task[] = [];
-  for (const { list, items } of allTasksResults) {
-    for (const task of items) {
-      if (task.due?.slice(0, 10) === tomorrowStr) {
-        result.push(toTask(task, list));
-      }
-    }
-  }
-  return result;
-}
+  const [activeResults, completedResults] = await Promise.all([
+    fetchListItemsForLists(tasksApi, lists, { showCompleted: false }),
+    fetchListItemsForLists(tasksApi, lists, { showCompleted: true, showHidden: true }),
+  ]);
 
-export async function fetchFutureTasks(accessToken: string): Promise<{
-  withinWeek: Task[];
-  withinMonth: Task[];
-  noDeadline: Task[];
-}> {
-  const tasksApi = createTasksApi(accessToken);
-  const allTasksResults = await fetchAllTaskItems(tasksApi);
   const todayStr = getTodayJST();
   const today = new Date(todayStr);
   const tomorrow = new Date(today.getTime() + 86400000);
+  const tomorrowStr = tomorrow.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
   const oneWeekFromNow = new Date(today.getTime() + 7 * 86400000);
 
+  const todayTasks: Task[] = [];
+  const expiredTasks: Task[] = [];
+  const tomorrowTasks: Task[] = [];
   const withinWeek: Task[] = [];
   const withinMonth: Task[] = [];
   const noDeadline: Task[] = [];
 
-  for (const { list, items } of allTasksResults) {
-    for (const task of items) {
-      if (task.due && task.status !== "completed") {
-        const taskDate = new Date(task.due.slice(0, 10));
+  for (const { list, items } of activeResults) {
+    for (const t of items) {
+      if (t.status === "completed") continue;
+      const dueDay = t.due?.slice(0, 10);
+      if (!dueDay) {
+        noDeadline.push(toTask(t, list, ""));
+      } else if (dueDay < todayStr) {
+        expiredTasks.push(toTask(t, list));
+      } else if (dueDay === todayStr) {
+        todayTasks.push(toTask(t, list));
+      } else if (dueDay === tomorrowStr) {
+        tomorrowTasks.push(toTask(t, list));
+      } else {
+        const taskDate = new Date(dueDay);
         if (taskDate > tomorrow) {
-          const taskObj = toTask(task, list);
+          const taskObj = toTask(t, list);
           if (taskDate <= oneWeekFromNow) {
             withinWeek.push(taskObj);
           } else {
             withinMonth.push(taskObj);
           }
         }
-      } else if (task.status !== "completed") {
-        noDeadline.push(toTask(task, list, ""));
+      }
+    }
+  }
+
+  const completedTasks: Task[] = [];
+  for (const { list, items } of completedResults) {
+    for (const t of items) {
+      if (t.status === "completed" && t.completed) {
+        const completedDate = new Date(t.completed).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+        if (completedDate === todayStr) {
+          completedTasks.push(toTask(t, list, ""));
+        }
       }
     }
   }
 
   const byDue = (a: Task, b: Task) => new Date(a.due).getTime() - new Date(b.due).getTime();
-  return {
-    withinWeek: withinWeek.sort(byDue),
-    withinMonth: withinMonth.sort(byDue),
-    noDeadline,
-  };
-}
 
-export async function fetchTodayCompletedTasks(accessToken: string): Promise<Task[]> {
-  const tasksApi = createTasksApi(accessToken);
-  const allTasksResults = await fetchAllTaskItems(tasksApi, { showCompleted: true, showHidden: true });
-  const todayStr = getTodayJST();
-  const result: Task[] = [];
-  for (const { list, items } of allTasksResults) {
-    for (const task of items) {
-      if (task.status === "completed" && task.completed) {
-        const completedDate = new Date(task.completed).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-        if (completedDate === todayStr) {
-          result.push(toTask(task, list, ""));
-        }
-      }
-    }
-  }
-  return result;
+  return {
+    todayTasks,
+    expiredTasks,
+    completedTasks,
+    tomorrowTasks,
+    futureTasks: {
+      withinWeek: withinWeek.sort(byDue),
+      withinMonth: withinMonth.sort(byDue),
+      noDeadline,
+    },
+  };
 }
