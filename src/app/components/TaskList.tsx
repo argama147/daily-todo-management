@@ -710,13 +710,76 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   };
 
   const updateTask = async (task: Task, title: string, notes: string, due: string, newListId?: string) => {
+    // 楽観的更新: 編集内容を即座にローカル状態へ反映する。
+    // fetchTasks は Google Tasks API を 1+2N 回叩く重い処理のため、
+    // 完了待ちで UI 反映を遅らせず、バックグラウンドで sync する。
+    const resolvedListId = newListId ?? task.listId;
+    const resolvedListTitle = newListId
+      ? taskLists.find((l) => l.id === newListId)?.title ?? task.listTitle
+      : task.listTitle;
+    const updatedTask: Task = {
+      ...task,
+      title,
+      notes,
+      due,
+      listId: resolvedListId,
+      listTitle: resolvedListTitle,
+    };
+
+    // 全バケットから既存タスクを除去
+    setIncompleteTasks((prev) => prev.filter((t) => t.id !== task.id));
+    setExpiredTasks((prev) => prev.filter((t) => t.id !== task.id));
+    setTomorrowTasks((prev) => prev.filter((t) => t.id !== task.id));
+    setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
+    setFutureTasks((prev) => ({
+      withinWeek: prev.withinWeek.filter((t) => t.id !== task.id),
+      withinMonth: prev.withinMonth.filter((t) => t.id !== task.id),
+      noDeadline: prev.noDeadline.filter((t) => t.id !== task.id),
+    }));
+
+    // 新しい due/status に基づいて適切なバケットへ追加
+    // 振り分け条件は tasks.ts のサーバー側と揃える
+    if (updatedTask.status === "completed") {
+      setCompletedTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [updatedTask, ...prev]);
+    } else {
+      const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+      const today = new Date(todayStr);
+      const tomorrowStr = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        .toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+      const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      const dueDateStr = updatedTask.due ? updatedTask.due.slice(0, 10) : "";
+      if (dueDateStr === "") {
+        setFutureTasks((prev) => ({
+          ...prev,
+          noDeadline: prev.noDeadline.some((t) => t.id === task.id) ? prev.noDeadline : [updatedTask, ...prev.noDeadline],
+        }));
+      } else if (dueDateStr < todayStr) {
+        setExpiredTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [updatedTask, ...prev]);
+      } else if (dueDateStr === todayStr) {
+        setIncompleteTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [updatedTask, ...prev]);
+      } else if (dueDateStr === tomorrowStr) {
+        setTomorrowTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [updatedTask, ...prev]);
+      } else if (new Date(dueDateStr) <= oneWeekFromNow) {
+        setFutureTasks((prev) => ({
+          ...prev,
+          withinWeek: prev.withinWeek.some((t) => t.id === task.id) ? prev.withinWeek : [updatedTask, ...prev.withinWeek],
+        }));
+      } else {
+        setFutureTasks((prev) => ({
+          ...prev,
+          withinMonth: prev.withinMonth.some((t) => t.id === task.id) ? prev.withinMonth : [updatedTask, ...prev.withinMonth],
+        }));
+      }
+    }
+
     try {
       const res = await fetch("/api/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          taskId: task.id, 
-          listId: task.listId, 
+        body: JSON.stringify({
+          taskId: task.id,
+          listId: task.listId,
           title: title,
           notes: notes,
           due: due,
@@ -726,10 +789,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
 
       if (!res.ok) throw new Error("タスクの更新に失敗しました");
 
-      // タスクの更新履歴を記録
+      // タスクの更新履歴を記録（PATCH 成功直後、sync より先に）
       const hasContentChange = task.title !== title || task.notes !== notes;
       const hasDueChange = task.due !== due;
-      
+
       if (hasContentChange) {
         addTaskHistoryItem(
           "edit",
@@ -739,7 +802,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           { ...task, title, notes } // 変更後の状態
         );
       }
-      
+
       if (hasDueChange) {
         addTaskHistoryItem(
           "changeDue",
@@ -750,10 +813,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         );
       }
 
-      // タスクリストを再取得
-      await fetchTasks();
+      // バックグラウンドでサーバー同期（UI は楽観的更新済みなので await しない）
+      fetchTasks();
     } catch (e) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
+      // 失敗時はサーバー状態に戻す
+      fetchTasks();
       throw e;
     }
   };
