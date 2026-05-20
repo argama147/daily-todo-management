@@ -1980,8 +1980,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         )}
       </main>
       
-      <SettingsModal 
-        isOpen={showSettings} 
+      <SettingsModal
+        isOpen={showSettings}
         onClose={() => {
           setShowSettings(false);
           refreshSettings();
@@ -1995,6 +1995,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           ...futureTasks.withinMonth,
           ...futureTasks.noDeadline,
         ]}
+        taskLists={taskLists}
+        onRefreshTaskLists={fetchTaskLists}
       />
       
       {selectedTask && (
