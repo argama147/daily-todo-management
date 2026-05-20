@@ -1,8 +1,25 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
+// 本番では Chrome 拡張からのクロスサイト送信を許可するため SameSite=None; Secure を強制する。
+// 開発（http://localhost）では Secure=true だと Cookie が発行されないため Lax を維持する。
+const useCrossSite = process.env.NODE_ENV === "production";
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET,
+  cookies: {
+    sessionToken: {
+      name: useCrossSite
+        ? "__Secure-authjs.session-token"
+        : "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: useCrossSite ? "none" : "lax",
+        path: "/",
+        secure: useCrossSite,
+      },
+    },
+  },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
