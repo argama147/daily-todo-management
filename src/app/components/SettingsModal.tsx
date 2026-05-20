@@ -10,9 +10,17 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   allTasks?: Task[];
+  taskLists?: { id: string; title: string }[];
+  onRefreshTaskLists?: () => void | Promise<void>;
 }
 
-export default function SettingsModal({ isOpen, onClose, allTasks = [] }: SettingsModalProps) {
+export default function SettingsModal({
+  isOpen,
+  onClose,
+  allTasks = [],
+  taskLists = [],
+  onRefreshTaskLists,
+}: SettingsModalProps) {
   const [settings, setSettings] = useState<AppSettings>({
     showUserName: true,
     visibleLists: {
@@ -38,6 +46,12 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
       setSettings(getSettings());
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      onRefreshTaskLists?.();
+    }
+  }, [isOpen, onRefreshTaskLists]);
 
   const handleSave = () => {
     const settingsToSave = {
@@ -189,8 +203,12 @@ export default function SettingsModal({ isOpen, onClose, allTasks = [] }: Settin
   };
 
   // 利用可能なカテゴリー一覧を取得
+  // マスターデータ（taskLists）を主軸にし、allTasks 由来の値もフォールバックとしてマージする
   const availableCategories = Array.from(
-    new Set(allTasks.map(task => task.listTitle).filter(Boolean))
+    new Set([
+      ...taskLists.map(list => list.title).filter(Boolean),
+      ...allTasks.map(task => task.listTitle).filter(Boolean),
+    ])
   ).sort();
 
   if (!isOpen) return null;
