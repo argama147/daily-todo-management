@@ -2,6 +2,7 @@
 
 import type { Task } from "@/lib/tasks";
 import { getTodayJST, getFirstLineOfNotes, hasTime, formatDateTime } from "@/lib/dateUtils";
+import { renderTextWithLinks } from "@/lib/linkify";
 
 export type TaskCardVariant =
   | "expired"
@@ -193,7 +194,9 @@ export default function TaskCard({
           {task.title}
         </p>
         {!isCompleted && getFirstLineOfNotes(task.notes) && (
-          <p className={`${s.notes} text-sm mt-1 truncate`}>{getFirstLineOfNotes(task.notes)}</p>
+          <p className={`${s.notes} text-sm mt-1 truncate`}>
+            {renderTextWithLinks(getFirstLineOfNotes(task.notes))}
+          </p>
         )}
         {badges}
       </div>

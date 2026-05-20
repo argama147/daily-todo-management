@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { Task } from "@/lib/tasks";
+import { renderTextWithLinks } from "@/lib/linkify";
 
 type TaskDetailProps = {
   task: Task;
@@ -9,40 +10,6 @@ type TaskDetailProps = {
   position?: { x: number; y: number };
   onClose: () => void;
   isMobile?: boolean;
-};
-
-// URLパターンを検出する正規表現
-const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
-
-// テキスト内のURLをリンクに変換する関数
-const renderTextWithLinks = (text: string, isMobile: boolean = false) => {
-  if (!text) return text;
-
-  const parts = text.split(URL_PATTERN);
-  return parts.map((part, index) => {
-    if (part.match(URL_PATTERN)) {
-      return (
-        <a
-          key={index}
-          href={part}
-          target={isMobile ? "_self" : "_blank"}
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:text-blue-800 underline break-all"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (isMobile) {
-              // モバイルではブラウザで開く
-              window.open(part, '_blank');
-              e.preventDefault();
-            }
-          }}
-        >
-          {part}
-        </a>
-      );
-    }
-    return part;
-  });
 };
 
 export default function TaskDetail({ task, isVisible, position, onClose, isMobile = false }: TaskDetailProps) {
@@ -118,7 +85,7 @@ export default function TaskDetail({ task, isVisible, position, onClose, isMobil
           <div className="p-4 overflow-y-auto max-h-64">
             <h4 className="font-medium text-gray-800 mb-2 break-words">{task.title}</h4>
             <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap break-words">
-              {renderTextWithLinks(task.notes, true)}
+              {renderTextWithLinks(task.notes)}
             </div>
           </div>
         </div>
