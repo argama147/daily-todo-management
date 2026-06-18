@@ -238,8 +238,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const getFilteredTaskListsForCurrentTab = () => {
     const activeFilterSet = getActiveFilterSet(settings);
 
-    // ALLタブ（デフォルト）またはカテゴリー設定がない場合はすべてのタスクリストを返す
-    if (activeFilterSet.isDefault || Object.keys(activeFilterSet.categories).length === 0) {
+    // カテゴリー設定がない場合はすべてのタスクリストを返す
+    // （isDefault でもカテゴリーが OFF にされていれば反映する。
+    //   filterTasksByCategory と同一条件にして表示タスクと種別ドロップダウンの挙動を揃える）
+    if (!activeFilterSet || Object.keys(activeFilterSet.categories).length === 0) {
       return taskLists;
     }
 
