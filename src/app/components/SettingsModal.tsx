@@ -40,10 +40,12 @@ export default function SettingsModal({
   const [showNewFilterSetForm, setShowNewFilterSetForm] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setSettings(getSettings());
+      setSaveError(null);
     }
   }, [isOpen]);
 
@@ -54,11 +56,35 @@ export default function SettingsModal({
   }, [isOpen, onRefreshTaskLists]);
 
   const handleSave = () => {
+    // 「+ 新しいフィルターセットを追加」フォームに入力したまま（インラインの「追加」未押下で）
+    // 保存した場合に取りこぼさないよう、入力途中のセットを保存対象に取り込む
+    let filterSets = settings.taskFilterSets;
+    if (showNewFilterSetForm && newFilterSetName.trim()) {
+      const allCategories: Record<string, boolean> = {};
+      availableCategories.forEach(category => {
+        allCategories[category] = true;
+      });
+      filterSets = [...filterSets, createTaskFilterSet(newFilterSetName.trim(), allCategories)];
+    }
+
     const settingsToSave = {
       ...settings,
-      taskFilterSets: settings.taskFilterSets.map(set => ({ ...set, name: set.name.trim() })),
+      taskFilterSets: filterSets.map(set => ({ ...set, name: set.name.trim() })),
     };
-    saveSettings(settingsToSave);
+
+    const saved = saveSettings(settingsToSave);
+    if (!saved) {
+      // 保存失敗時は閉じずにエラー表示し、入力内容を保持する
+      setSaveError(
+        "設定を保存できませんでした。ブラウザのストレージ容量が不足している可能性があります。不要なフィルターセットを削除してから再度お試しください。"
+      );
+      return;
+    }
+
+    setSettings(settingsToSave);
+    setNewFilterSetName('');
+    setShowNewFilterSetForm(false);
+    setSaveError(null);
     onClose();
   };
 
@@ -70,6 +96,7 @@ export default function SettingsModal({
   const handleCancel = () => {
     setShowNewFilterSetForm(false);
     setNewFilterSetName('');
+    setSaveError(null);
     onClose();
   };
 
@@ -416,6 +443,14 @@ export default function SettingsModal({
           </div>
 
         </div>
+
+        {saveError && (
+          <div className="px-4 pt-2">
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+              {saveError}
+            </p>
+          </div>
+        )}
 
         <div className="flex justify-end gap-3 p-4 border-t border-gray-200">
           <button
