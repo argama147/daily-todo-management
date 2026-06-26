@@ -44,8 +44,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   selectedFilterSetId: 'default',
 };
 
-const SETTINGS_COOKIE_NAME = "todo-app-settings";
-const SELECTED_TAB_COOKIE_NAME = "todo-app-selected-tab";
+// 設定は localStorage に保存する（容量 約5〜10MB）。
+// 旧バージョンでは同名の Cookie に保存していたため、初回読み込み時に移行する。
+const SETTINGS_STORAGE_KEY = "todo-app-settings";
 
 export function getSettings(): AppSettings {
   if (typeof window === "undefined") {
@@ -53,7 +54,7 @@ export function getSettings(): AppSettings {
   }
 
   try {
-    const stored = getCookie(SETTINGS_COOKIE_NAME);
+    const stored = readStoredSettings();
     if (stored) {
       const parsed = JSON.parse(stored);
       // visibleLists を深くマージすることで、新しいキーがデフォルト値で自動的に補完される
@@ -78,16 +79,28 @@ export function getSettings(): AppSettings {
   return DEFAULT_SETTINGS;
 }
 
-export function saveSettings(settings: AppSettings): void {
+/**
+ * 設定を localStorage に保存する。
+ * 書き込み後に読み戻して照合し、容量超過（QuotaExceededError）などの
+ * 失敗を検知できるよう、成否を boolean で返す。
+ */
+export function saveSettings(settings: AppSettings): boolean {
   if (typeof window === "undefined") {
-    return;
+    return false;
   }
 
   try {
     const value = JSON.stringify(settings);
-    setCookie(SETTINGS_COOKIE_NAME, value, 365);
+    localStorage.setItem(SETTINGS_STORAGE_KEY, value);
+    // 保存検証: 書き込んだ値が実際に読み戻せるか確認する
+    if (localStorage.getItem(SETTINGS_STORAGE_KEY) !== value) {
+      console.error("設定の保存検証に失敗しました（保存値と読み戻し値が不一致）");
+      return false;
+    }
+    return true;
   } catch (error) {
     console.error("設定の保存に失敗しました:", error);
+    return false;
   }
 }
 
@@ -122,7 +135,37 @@ export function updateCategoriesFromTasks(tasks: { listTitle: string }[]): void 
   }
 }
 
-function getCookie(name: string): string | null {
+/**
+ * 設定の生文字列を取得する。localStorage を正とし、
+ * localStorage が空で旧 Cookie が残っている場合のみ、一度だけ localStorage へ移行する。
+ */
+function readStoredSettings(): string | null {
+  let value: string | null = null;
+  try {
+    value = localStorage.getItem(SETTINGS_STORAGE_KEY);
+  } catch {
+    value = null;
+  }
+  if (value !== null) {
+    return value;
+  }
+
+  // 旧バージョンの Cookie から移行（生 JSON 文字列として保存されている）
+  const legacy = getLegacyCookie(SETTINGS_STORAGE_KEY);
+  if (legacy !== null) {
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, legacy);
+    } catch {
+      // 容量超過などで移行できなくても、今回読み込む値としては legacy を使う
+    }
+    deleteLegacyCookie(SETTINGS_STORAGE_KEY);
+    return legacy;
+  }
+
+  return null;
+}
+
+function getLegacyCookie(name: string): string | null {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
   if (parts.length === 2) {
@@ -131,10 +174,8 @@ function getCookie(name: string): string | null {
   return null;
 }
 
-function setCookie(name: string, value: string, days: number): void {
-  const expires = new Date();
-  expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+function deleteLegacyCookie(name: string): void {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
 }
 
 // フィルターセット管理のヘルパー関数
