@@ -8,8 +8,10 @@ export type TaskCardVariant =
   | "expired"
   | "today"
   | "tomorrow"
+  | "dayAfterTomorrow"
   | "withinWeek"
   | "withinMonth"
+  | "longTerm"
   | "noDeadline"
   | "completed";
 
@@ -27,8 +29,10 @@ const VARIANT_STYLES: Record<TaskCardVariant, VariantStyle> = {
   expired:     { container: "bg-red-50 border-red-200",       completeBtnBorder: "border-red-300",    title: "text-red-800",    notes: "text-red-600",    listBadge: "text-red-500 bg-red-100",      dateBadge: "text-red-600 bg-red-200",      menuBtn: "text-blue-600 hover:text-blue-800 hover:bg-blue-50"     },
   today:       { container: "bg-white border-gray-200",        completeBtnBorder: "border-gray-300",   title: "text-gray-800",   notes: "text-gray-600",   listBadge: "text-gray-400 bg-gray-100",    dateBadge: "text-blue-600 bg-blue-100",    menuBtn: "text-blue-600 hover:text-blue-800 hover:bg-blue-50"     },
   tomorrow:    { container: "bg-orange-50 border-orange-200",  completeBtnBorder: "border-orange-300", title: "text-orange-800", notes: "text-orange-600", listBadge: "text-orange-600 bg-orange-100", dateBadge: "text-orange-600 bg-orange-200", menuBtn: "text-orange-600 hover:text-orange-800 hover:bg-orange-50" },
+  dayAfterTomorrow: { container: "bg-amber-50 border-amber-200", completeBtnBorder: "border-amber-300", title: "text-amber-800", notes: "text-amber-600", listBadge: "text-amber-600 bg-amber-100", dateBadge: "text-amber-600 bg-amber-200", menuBtn: "text-amber-600 hover:text-amber-800 hover:bg-amber-50" },
   withinWeek:  { container: "bg-blue-50 border-blue-200",      completeBtnBorder: "border-blue-300",   title: "text-blue-800",   notes: "text-blue-600",   listBadge: "text-blue-500 bg-blue-100",    dateBadge: "text-blue-600 bg-blue-200",    menuBtn: "text-blue-600 hover:text-blue-800 hover:bg-blue-50"     },
   withinMonth: { container: "bg-orange-50 border-orange-200",  completeBtnBorder: "border-orange-300", title: "text-orange-800", notes: "text-orange-600", listBadge: "text-orange-500 bg-orange-100", dateBadge: "text-orange-600 bg-orange-200", menuBtn: "text-blue-600 hover:text-blue-800 hover:bg-blue-50"    },
+  longTerm:    { container: "bg-purple-50 border-purple-200",  completeBtnBorder: "border-purple-300", title: "text-purple-800", notes: "text-purple-600", listBadge: "text-purple-500 bg-purple-100", dateBadge: "text-purple-600 bg-purple-200", menuBtn: "text-blue-600 hover:text-blue-800 hover:bg-blue-50"    },
   noDeadline:  { container: "bg-gray-50 border-gray-200",      completeBtnBorder: "border-gray-300",   title: "text-gray-800",   notes: "text-gray-600",   listBadge: "text-gray-400 bg-gray-100",    dateBadge: "",                             menuBtn: "text-blue-600 hover:text-blue-800 hover:bg-blue-50"     },
   completed:   { container: "bg-green-50 border-green-200",    completeBtnBorder: "",                  title: "text-gray-500",   notes: "",                listBadge: "text-gray-400 bg-green-100",   dateBadge: "",                             menuBtn: ""                                                       },
 };
@@ -126,8 +130,18 @@ export default function TaskCard({
             )}
           </div>
         );
+      case "dayAfterTomorrow":
+        return (
+          <div className="mt-1 flex flex-wrap gap-1">
+            <span className={`text-xs ${s.listBadge} rounded px-2 py-0.5`}>{task.listTitle}</span>
+            {task.due && (
+              <span className={`text-xs ${s.dateBadge} rounded px-2 py-0.5 font-medium`}>明後日</span>
+            )}
+          </div>
+        );
       case "withinWeek":
       case "withinMonth":
+      case "longTerm":
         return (
           <div className="mt-1 flex flex-wrap gap-1">
             <span className={`text-xs ${s.listBadge} rounded px-2 py-0.5`}>{task.listTitle}</span>

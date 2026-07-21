@@ -28,8 +28,10 @@ export default function SettingsModal({
       today: true,
       completed: true,
       tomorrow: true,
+      dayAfterTomorrow: true,
       withinWeek: true,
       withinMonth: true,
+      longTerm: true,
       noDeadline: true,
     },
     visibleCategories: {},
@@ -125,8 +127,10 @@ export default function SettingsModal({
         today: turnOn,
         completed: turnOn,
         tomorrow: turnOn,
+        dayAfterTomorrow: turnOn,
         withinWeek: turnOn,
         withinMonth: turnOn,
+        longTerm: turnOn,
         noDeadline: turnOn,
       },
     }));
@@ -295,8 +299,10 @@ export default function SettingsModal({
                 { key: "today" as const, label: "本日の未完了タスク" },
                 { key: "completed" as const, label: "完了したタスク" },
                 { key: "tomorrow" as const, label: "明日のタスク" },
+                { key: "dayAfterTomorrow" as const, label: "明後日のタスク" },
                 { key: "withinWeek" as const, label: "一週間以内のタスク" },
                 { key: "withinMonth" as const, label: "一ヶ月以内のタスク" },
+                { key: "longTerm" as const, label: "一ヶ月以上先のタスク" },
                 { key: "noDeadline" as const, label: "期限なしタスク" },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center">

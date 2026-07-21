@@ -12,8 +12,10 @@ export interface AppSettings {
     today: boolean;
     completed: boolean;
     tomorrow: boolean;
+    dayAfterTomorrow: boolean;
     withinWeek: boolean;
     withinMonth: boolean;
+    longTerm: boolean;
     noDeadline: boolean;
   };
   visibleCategories: Record<string, boolean>;
@@ -35,8 +37,10 @@ const DEFAULT_SETTINGS: AppSettings = {
     today: true,
     completed: true,
     tomorrow: true,
+    dayAfterTomorrow: true,
     withinWeek: true,
     withinMonth: true,
+    longTerm: true,
     noDeadline: true,
   },
   visibleCategories: {},
