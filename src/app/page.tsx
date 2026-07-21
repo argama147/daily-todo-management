@@ -29,6 +29,6 @@ export default async function Home() {
     throw err;
   }
 
-  const { todayTasks, expiredTasks, completedTasks, futureTasks, tomorrowTasks } = categorized;
-  return <TaskList initialTasks={todayTasks} initialExpiredTasks={expiredTasks} initialCompletedTasks={completedTasks} initialFutureTasks={futureTasks} initialTomorrowTasks={tomorrowTasks} user={session.user} />;
+  const { todayTasks, expiredTasks, completedTasks, futureTasks, tomorrowTasks, dayAfterTomorrowTasks } = categorized;
+  return <TaskList initialTasks={todayTasks} initialExpiredTasks={expiredTasks} initialCompletedTasks={completedTasks} initialFutureTasks={futureTasks} initialTomorrowTasks={tomorrowTasks} initialDayAfterTomorrowTasks={dayAfterTomorrowTasks} user={session.user} />;
 }

@@ -68,9 +68,11 @@ export type CategorizedTasks = {
   expiredTasks: Task[];
   completedTasks: Task[];
   tomorrowTasks: Task[];
+  dayAfterTomorrowTasks: Task[];
   futureTasks: {
     withinWeek: Task[];
     withinMonth: Task[];
+    longTerm: Task[];
     noDeadline: Task[];
   };
 };
@@ -97,13 +99,18 @@ export async function fetchAllCategorizedTasks(accessToken: string): Promise<Cat
   const today = new Date(todayStr);
   const tomorrow = new Date(today.getTime() + 86400000);
   const tomorrowStr = tomorrow.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+  const dayAfterTomorrow = new Date(today.getTime() + 2 * 86400000);
+  const dayAfterTomorrowStr = dayAfterTomorrow.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
   const oneWeekFromNow = new Date(today.getTime() + 7 * 86400000);
+  const oneMonthFromNow = new Date(today.getTime() + 30 * 86400000);
 
   const todayTasks: Task[] = [];
   const expiredTasks: Task[] = [];
   const tomorrowTasks: Task[] = [];
+  const dayAfterTomorrowTasks: Task[] = [];
   const withinWeek: Task[] = [];
   const withinMonth: Task[] = [];
+  const longTerm: Task[] = [];
   const noDeadline: Task[] = [];
 
   for (const { list, items } of activeResults) {
@@ -118,14 +125,18 @@ export async function fetchAllCategorizedTasks(accessToken: string): Promise<Cat
         todayTasks.push(toTask(t, list));
       } else if (dueDay === tomorrowStr) {
         tomorrowTasks.push(toTask(t, list));
+      } else if (dueDay === dayAfterTomorrowStr) {
+        dayAfterTomorrowTasks.push(toTask(t, list));
       } else {
         const taskDate = new Date(dueDay);
-        if (taskDate > tomorrow) {
+        if (taskDate > dayAfterTomorrow) {
           const taskObj = toTask(t, list);
           if (taskDate <= oneWeekFromNow) {
             withinWeek.push(taskObj);
-          } else {
+          } else if (taskDate <= oneMonthFromNow) {
             withinMonth.push(taskObj);
+          } else {
+            longTerm.push(taskObj);
           }
         }
       }
@@ -151,9 +162,11 @@ export async function fetchAllCategorizedTasks(accessToken: string): Promise<Cat
     expiredTasks,
     completedTasks,
     tomorrowTasks,
+    dayAfterTomorrowTasks,
     futureTasks: {
       withinWeek: withinWeek.sort(byDue),
       withinMonth: withinMonth.sort(byDue),
+      longTerm: longTerm.sort(byDue),
       noDeadline,
     },
   };

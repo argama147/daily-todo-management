@@ -22,30 +22,34 @@ type Props = {
   initialExpiredTasks: Task[];
   initialCompletedTasks?: Task[];
   initialTomorrowTasks?: Task[];
+  initialDayAfterTomorrowTasks?: Task[];
   initialFutureTasks?: {
     withinWeek: Task[];
     withinMonth: Task[];
+    longTerm: Task[];
     noDeadline: Task[];
   };
   user?: User;
 };
 
-export default function TaskList({ initialTasks, initialExpiredTasks, initialCompletedTasks, initialTomorrowTasks, initialFutureTasks, user }: Props) {
+export default function TaskList({ initialTasks, initialExpiredTasks, initialCompletedTasks, initialTomorrowTasks, initialDayAfterTomorrowTasks, initialFutureTasks, user }: Props) {
   const [incompleteTasks, setIncompleteTasks] = useState<Task[]>(initialTasks);
   const [expiredTasks, setExpiredTasks] = useState<Task[]>(initialExpiredTasks);
   const [completedTasks, setCompletedTasks] = useState<Task[]>(initialCompletedTasks ?? []);
   const [tomorrowTasks, setTomorrowTasks] = useState<Task[]>(initialTomorrowTasks ?? []);
+  const [dayAfterTomorrowTasks, setDayAfterTomorrowTasks] = useState<Task[]>(initialDayAfterTomorrowTasks ?? []);
   const [futureTasks, setFutureTasks] = useState<{
     withinWeek: Task[];
     withinMonth: Task[];
+    longTerm: Task[];
     noDeadline: Task[];
-  }>(initialFutureTasks ?? { withinWeek: [], withinMonth: [], noDeadline: [] });
+  }>(initialFutureTasks ?? { withinWeek: [], withinMonth: [], longTerm: [], noDeadline: [] });
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState<Set<string>>(new Set());
   const [uncompleting, setUncompleting] = useState<Set<string>>(new Set());
   const [newlyCompleted, setNewlyCompleted] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  type TabKey = "expired" | "today" | "completed" | "tomorrow" | "withinWeek" | "withinMonth" | "noDeadline";
+  type TabKey = "expired" | "today" | "completed" | "tomorrow" | "dayAfterTomorrow" | "withinWeek" | "withinMonth" | "longTerm" | "noDeadline";
   const [activeTab, setActiveTab] = useState<TabKey>("today");
   const [changingDue, setChangingDue] = useState<Set<string>>(new Set());
   const [datePickerTask, setDatePickerTask] = useState<Task | null>(null);
@@ -117,8 +121,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       today: true,
       completed: true,
       tomorrow: true,
+      dayAfterTomorrow: true,
       withinWeek: true,
       withinMonth: true,
+      longTerm: true,
       noDeadline: true,
     },
     visibleCategories: {},
@@ -148,7 +154,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   
   // タブの順序定義
-  const tabOrder: TabKey[] = ["expired", "today", "tomorrow", "completed", "withinWeek", "withinMonth", "noDeadline"];
+  const tabOrder: TabKey[] = ["expired", "today", "tomorrow", "dayAfterTomorrow", "completed", "withinWeek", "withinMonth", "longTerm", "noDeadline"];
 
   // 設定の読み込み
   useEffect(() => {
@@ -181,13 +187,16 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       ...incompleteTasks,
       ...expiredTasks,
       ...completedTasks,
+      ...tomorrowTasks,
+      ...dayAfterTomorrowTasks,
       ...futureTasks.withinWeek,
       ...futureTasks.withinMonth,
+      ...futureTasks.longTerm,
       ...futureTasks.noDeadline,
     ];
     updateCategoriesFromTasks(allTasks);
     setSettings(getSettings());
-  }, [incompleteTasks, expiredTasks, completedTasks, futureTasks]);
+  }, [incompleteTasks, expiredTasks, completedTasks, tomorrowTasks, dayAfterTomorrowTasks, futureTasks]);
 
   // 設定変更時のリフレッシュ
   const refreshSettings = () => {
@@ -228,9 +237,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
   const filteredExpiredTasks = filterTasksByCategory(expiredTasks);
   const filteredCompletedTasks = filterTasksByCategory(completedTasks);
   const filteredTomorrowTasks = filterTasksByCategory(tomorrowTasks);
+  const filteredDayAfterTomorrowTasks = filterTasksByCategory(dayAfterTomorrowTasks);
   const filteredFutureTasks = {
     withinWeek: filterTasksByCategory(futureTasks.withinWeek),
     withinMonth: filterTasksByCategory(futureTasks.withinMonth),
+    longTerm: filterTasksByCategory(futureTasks.longTerm),
     noDeadline: filterTasksByCategory(futureTasks.noDeadline),
   };
 
@@ -278,6 +289,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       setExpiredTasks(data.expiredTasks ?? []);
       setCompletedTasks(data.completedTasks ?? []);
       setTomorrowTasks(data.tomorrowTasks ?? []);
+      setDayAfterTomorrowTasks(data.dayAfterTomorrowTasks ?? []);
       if (data.futureTasks) {
         setFutureTasks(data.futureTasks);
       }
@@ -313,9 +325,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       setIncompleteTasks((prev) => prev.filter((t) => t.id !== task.id));
       setExpiredTasks((prev) => prev.filter((t) => t.id !== task.id));
       setTomorrowTasks((prev) => prev.filter((t) => t.id !== task.id));
+      setDayAfterTomorrowTasks((prev) => prev.filter((t) => t.id !== task.id));
       setFutureTasks((prev) => ({
         withinWeek: prev.withinWeek.filter((t) => t.id !== task.id),
         withinMonth: prev.withinMonth.filter((t) => t.id !== task.id),
+        longTerm: prev.longTerm.filter((t) => t.id !== task.id),
         noDeadline: prev.noDeadline.filter((t) => t.id !== task.id),
       }));
       setCompletedTasks((prev) => {
@@ -352,10 +366,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         setIncompleteTasks((data.todayTasks ?? []).filter((t: Task) => t.id !== task.id));
         setExpiredTasks((data.expiredTasks ?? []).filter((t: Task) => t.id !== task.id));
         setTomorrowTasks((data.tomorrowTasks ?? []).filter((t: Task) => t.id !== task.id));
+        setDayAfterTomorrowTasks((data.dayAfterTomorrowTasks ?? []).filter((t: Task) => t.id !== task.id));
         if (data.futureTasks) {
           setFutureTasks({
             withinWeek: data.futureTasks.withinWeek.filter((t: Task) => t.id !== task.id),
             withinMonth: data.futureTasks.withinMonth.filter((t: Task) => t.id !== task.id),
+            longTerm: data.futureTasks.longTerm.filter((t: Task) => t.id !== task.id),
             noDeadline: data.futureTasks.noDeadline.filter((t: Task) => t.id !== task.id),
           });
         }
@@ -390,22 +406,26 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     const today = new Date(todayStr);
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
     const tomorrowStr = tomorrow.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-    
+    const dayAfterTomorrow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const dayAfterTomorrowStr = dayAfterTomorrow.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+
     const taskDateStr = task.due ? task.due.slice(0, 10) : "";
     const isExpiredTask = taskDateStr !== "" && taskDateStr < todayStr;
     const isTodayTask = taskDateStr === todayStr;
     const isTomorrowTask = taskDateStr === tomorrowStr;
+    const isDayAfterTomorrowTask = taskDateStr === dayAfterTomorrowStr;
     const isNoDeadlineTask = taskDateStr === "";
-    // isFutureTask = !isExpiredTask && !isTodayTask && !isTomorrowTask && !isNoDeadlineTask
+    // isFutureTask = !isExpiredTask && !isTodayTask && !isTomorrowTask && !isDayAfterTomorrowTask && !isNoDeadlineTask
 
     const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
     const oneMonthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    const addToFutureBucket = (prev: { withinWeek: Task[]; withinMonth: Task[]; noDeadline: Task[] }) => {
+    const addToFutureBucket = (prev: { withinWeek: Task[]; withinMonth: Task[]; longTerm: Task[]; noDeadline: Task[] }) => {
       const taskDate = new Date(taskDateStr);
       const add = (list: Task[]) => list.some((t) => t.id === task.id) ? list : [task, ...list];
-      if (taskDate > tomorrow && taskDate <= oneWeekFromNow) return { ...prev, withinWeek: add(prev.withinWeek) };
-      return { ...prev, withinMonth: add(prev.withinMonth) };
+      if (taskDate > dayAfterTomorrow && taskDate <= oneWeekFromNow) return { ...prev, withinWeek: add(prev.withinWeek) };
+      if (taskDate <= oneMonthFromNow) return { ...prev, withinMonth: add(prev.withinMonth) };
+      return { ...prev, longTerm: add(prev.longTerm) };
     };
 
     setTimeout(() => {
@@ -423,6 +443,8 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         setIncompleteTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [task, ...prev]);
       } else if (isTomorrowTask) {
         setTomorrowTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [task, ...prev]);
+      } else if (isDayAfterTomorrowTask) {
+        setDayAfterTomorrowTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [task, ...prev]);
       } else if (isNoDeadlineTask) {
         setFutureTasks((prev) => ({
           ...prev,
@@ -479,6 +501,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
             const inServer = [
               ...(sf.withinWeek ?? []),
               ...(sf.withinMonth ?? []),
+              ...(sf.longTerm ?? []),
               ...(sf.noDeadline ?? []),
             ].some((t: Task) => t.id === task.id);
             if (inServer) {
@@ -492,6 +515,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               setFutureTasks(addToFutureBucket({
                 withinWeek: (sf.withinWeek ?? []).filter((t: Task) => t.id !== task.id),
                 withinMonth: (sf.withinMonth ?? []).filter((t: Task) => t.id !== task.id),
+                longTerm: (sf.longTerm ?? []).filter((t: Task) => t.id !== task.id),
                 noDeadline: sf.noDeadline ?? [],
               }));
             }
@@ -510,6 +534,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         setFutureTasks((prev) => ({
           withinWeek: prev.withinWeek.filter((t) => t.id !== task.id),
           withinMonth: prev.withinMonth.filter((t) => t.id !== task.id),
+          longTerm: prev.longTerm.filter((t) => t.id !== task.id),
           noDeadline: prev.noDeadline.filter((t) => t.id !== task.id),
         }));
       }
@@ -567,7 +592,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       const { operation, taskId, previousState, currentState } = historyItem;
       
       // 現在のタスク状態を取得
-      const allTasks = [...incompleteTasks, ...expiredTasks, ...completedTasks, ...futureTasks.withinWeek, ...futureTasks.withinMonth, ...futureTasks.noDeadline];
+      const allTasks = [...incompleteTasks, ...expiredTasks, ...completedTasks, ...tomorrowTasks, ...dayAfterTomorrowTasks, ...futureTasks.withinWeek, ...futureTasks.withinMonth, ...futureTasks.longTerm, ...futureTasks.noDeadline];
       const currentTask = allTasks.find(t => t.id === taskId);
       
       if (!currentTask) {
@@ -618,9 +643,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               setIncompleteTasks(prev => prev.map(updateTask));
               setExpiredTasks(prev => prev.map(updateTask));
               setCompletedTasks(prev => prev.map(updateTask));
+              setTomorrowTasks(prev => prev.map(updateTask));
+              setDayAfterTomorrowTasks(prev => prev.map(updateTask));
               setFutureTasks(prev => ({
                 withinWeek: prev.withinWeek.map(updateTask),
                 withinMonth: prev.withinMonth.map(updateTask),
+                longTerm: prev.longTerm.map(updateTask),
                 noDeadline: prev.noDeadline.map(updateTask),
               }));
               return true;
@@ -678,9 +706,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     setExpiredTasks((prev) => prev.filter((t) => t.id !== task.id));
     setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
     setTomorrowTasks((prev) => prev.filter((t) => t.id !== task.id));
+    setDayAfterTomorrowTasks((prev) => prev.filter((t) => t.id !== task.id));
     setFutureTasks((prev) => ({
       withinWeek: prev.withinWeek.filter((t) => t.id !== task.id),
       withinMonth: prev.withinMonth.filter((t) => t.id !== task.id),
+      longTerm: prev.longTerm.filter((t) => t.id !== task.id),
       noDeadline: prev.noDeadline.filter((t) => t.id !== task.id),
     }));
 
@@ -732,10 +762,12 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     setIncompleteTasks((prev) => prev.filter((t) => t.id !== task.id));
     setExpiredTasks((prev) => prev.filter((t) => t.id !== task.id));
     setTomorrowTasks((prev) => prev.filter((t) => t.id !== task.id));
+    setDayAfterTomorrowTasks((prev) => prev.filter((t) => t.id !== task.id));
     setCompletedTasks((prev) => prev.filter((t) => t.id !== task.id));
     setFutureTasks((prev) => ({
       withinWeek: prev.withinWeek.filter((t) => t.id !== task.id),
       withinMonth: prev.withinMonth.filter((t) => t.id !== task.id),
+      longTerm: prev.longTerm.filter((t) => t.id !== task.id),
       noDeadline: prev.noDeadline.filter((t) => t.id !== task.id),
     }));
 
@@ -748,7 +780,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       const today = new Date(todayStr);
       const tomorrowStr = new Date(today.getTime() + 24 * 60 * 60 * 1000)
         .toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
+      const dayAfterTomorrow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+      const dayAfterTomorrowStr = dayAfterTomorrow.toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
       const oneWeekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const oneMonthFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
 
       const dueDateStr = updatedTask.due ? updatedTask.due.slice(0, 10) : "";
       if (dueDateStr === "") {
@@ -762,15 +797,22 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         setIncompleteTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [updatedTask, ...prev]);
       } else if (dueDateStr === tomorrowStr) {
         setTomorrowTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [updatedTask, ...prev]);
+      } else if (dueDateStr === dayAfterTomorrowStr) {
+        setDayAfterTomorrowTasks((prev) => prev.some((t) => t.id === task.id) ? prev : [updatedTask, ...prev]);
       } else if (new Date(dueDateStr) <= oneWeekFromNow) {
         setFutureTasks((prev) => ({
           ...prev,
           withinWeek: prev.withinWeek.some((t) => t.id === task.id) ? prev.withinWeek : [updatedTask, ...prev.withinWeek],
         }));
-      } else {
+      } else if (new Date(dueDateStr) <= oneMonthFromNow) {
         setFutureTasks((prev) => ({
           ...prev,
           withinMonth: prev.withinMonth.some((t) => t.id === task.id) ? prev.withinMonth : [updatedTask, ...prev.withinMonth],
+        }));
+      } else {
+        setFutureTasks((prev) => ({
+          ...prev,
+          longTerm: prev.longTerm.some((t) => t.id === task.id) ? prev.longTerm : [updatedTask, ...prev.longTerm],
         }));
       }
     }
@@ -847,7 +889,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
       const newTaskRes = await fetch("/api/tasks");
       if (newTaskRes.ok) {
         const data = await newTaskRes.json();
-        const allNewTasks = [...(data.todayTasks || []), ...(data.expiredTasks || []), ...(data.futureTasks?.withinWeek || []), ...(data.futureTasks?.withinMonth || []), ...(data.futureTasks?.noDeadline || [])];
+        const allNewTasks = [...(data.todayTasks || []), ...(data.expiredTasks || []), ...(data.tomorrowTasks || []), ...(data.dayAfterTomorrowTasks || []), ...(data.futureTasks?.withinWeek || []), ...(data.futureTasks?.withinMonth || []), ...(data.futureTasks?.longTerm || []), ...(data.futureTasks?.noDeadline || [])];
         const createdTask = allNewTasks.find(t => t.title === title && t.listId === listId);
         
         if (createdTask) {
@@ -934,12 +976,14 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
 
   // ドラッグ&ドロップ — 移動可否マトリクス
   const ALLOWED_DROPS: Partial<Record<TabKey, TabKey[]>> = {
-    expired:     ["today", "completed", "tomorrow", "withinWeek", "withinMonth", "noDeadline"],
-    today:       ["completed", "tomorrow", "withinWeek", "withinMonth", "noDeadline"],
-    tomorrow:    ["today", "completed", "withinWeek", "withinMonth", "noDeadline"],
-    withinWeek:  ["today", "tomorrow", "completed", "withinMonth", "noDeadline"],
-    withinMonth: ["today", "tomorrow", "completed", "withinWeek", "noDeadline"],
-    noDeadline:  ["today", "tomorrow", "completed", "withinWeek", "withinMonth"],
+    expired:     ["today", "completed", "tomorrow", "dayAfterTomorrow", "withinWeek", "withinMonth", "longTerm", "noDeadline"],
+    today:       ["completed", "tomorrow", "dayAfterTomorrow", "withinWeek", "withinMonth", "longTerm", "noDeadline"],
+    tomorrow:    ["today", "completed", "dayAfterTomorrow", "withinWeek", "withinMonth", "longTerm", "noDeadline"],
+    dayAfterTomorrow: ["today", "tomorrow", "completed", "withinWeek", "withinMonth", "longTerm", "noDeadline"],
+    withinWeek:  ["today", "tomorrow", "dayAfterTomorrow", "completed", "withinMonth", "longTerm", "noDeadline"],
+    withinMonth: ["today", "tomorrow", "dayAfterTomorrow", "completed", "withinWeek", "longTerm", "noDeadline"],
+    longTerm:    ["today", "tomorrow", "dayAfterTomorrow", "completed", "withinWeek", "withinMonth", "noDeadline"],
+    noDeadline:  ["today", "tomorrow", "dayAfterTomorrow", "completed", "withinWeek", "withinMonth", "longTerm"],
     // completed: なし（ドラッグ移動不可）
   };
 
@@ -949,7 +993,7 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
     const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
     const d = new Date(todayStr + "T00:00:00.000Z");
     const offsetMap: Partial<Record<TabKey, number>> = {
-      today: 0, tomorrow: 1, withinWeek: 2, withinMonth: 8,
+      today: 0, tomorrow: 1, dayAfterTomorrow: 2, withinWeek: 3, withinMonth: 8, longTerm: 31,
     };
     const offset = offsetMap[target];
     if (offset === undefined) return null;
@@ -1026,9 +1070,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         case "expired":     setExpiredTasks((p) => p.filter((t) => t.id !== task.id)); break;
         case "today":       setIncompleteTasks((p) => p.filter((t) => t.id !== task.id)); break;
         case "tomorrow":    setTomorrowTasks((p) => p.filter((t) => t.id !== task.id)); break;
+        case "dayAfterTomorrow": setDayAfterTomorrowTasks((p) => p.filter((t) => t.id !== task.id)); break;
         case "completed":   setCompletedTasks((p) => p.filter((t) => t.id !== task.id)); break;
         case "withinWeek":  setFutureTasks((p) => ({ ...p, withinWeek: p.withinWeek.filter((t) => t.id !== task.id) })); break;
         case "withinMonth": setFutureTasks((p) => ({ ...p, withinMonth: p.withinMonth.filter((t) => t.id !== task.id) })); break;
+        case "longTerm":    setFutureTasks((p) => ({ ...p, longTerm: p.longTerm.filter((t) => t.id !== task.id) })); break;
         case "noDeadline":  setFutureTasks((p) => ({ ...p, noDeadline: p.noDeadline.filter((t) => t.id !== task.id) })); break;
       }
     };
@@ -1039,9 +1085,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         case "expired":     setExpiredTasks((p) => (p.some((t) => t.id === original.id) ? p : [original, ...p])); break;
         case "today":       setIncompleteTasks((p) => (p.some((t) => t.id === original.id) ? p : [original, ...p])); break;
         case "tomorrow":    setTomorrowTasks((p) => (p.some((t) => t.id === original.id) ? p : [original, ...p])); break;
+        case "dayAfterTomorrow": setDayAfterTomorrowTasks((p) => (p.some((t) => t.id === original.id) ? p : [original, ...p])); break;
         case "completed":   setCompletedTasks((p) => (p.some((t) => t.id === original.id) ? p : [original, ...p])); break;
         case "withinWeek":  setFutureTasks((p) => ({ ...p, withinWeek: p.withinWeek.some((t) => t.id === original.id) ? p.withinWeek : [original, ...p.withinWeek] })); break;
         case "withinMonth": setFutureTasks((p) => ({ ...p, withinMonth: p.withinMonth.some((t) => t.id === original.id) ? p.withinMonth : [original, ...p.withinMonth] })); break;
+        case "longTerm":    setFutureTasks((p) => ({ ...p, longTerm: p.longTerm.some((t) => t.id === original.id) ? p.longTerm : [original, ...p.longTerm] })); break;
         case "noDeadline":  setFutureTasks((p) => ({ ...p, noDeadline: p.noDeadline.some((t) => t.id === original.id) ? p.noDeadline : [original, ...p.noDeadline] })); break;
       }
     };
@@ -1087,8 +1135,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         switch (tab) {
           case "today":       setIncompleteTasks((p) => (p.some((t) => t.id === task.id) ? p : [updatedTask, ...p])); break;
           case "tomorrow":    setTomorrowTasks((p) => (p.some((t) => t.id === task.id) ? p : [updatedTask, ...p])); break;
+          case "dayAfterTomorrow": setDayAfterTomorrowTasks((p) => (p.some((t) => t.id === task.id) ? p : [updatedTask, ...p])); break;
           case "withinWeek":  setFutureTasks((p) => ({ ...p, withinWeek: p.withinWeek.some((t) => t.id === task.id) ? p.withinWeek : [updatedTask, ...p.withinWeek] })); break;
           case "withinMonth": setFutureTasks((p) => ({ ...p, withinMonth: p.withinMonth.some((t) => t.id === task.id) ? p.withinMonth : [updatedTask, ...p.withinMonth] })); break;
+          case "longTerm":    setFutureTasks((p) => ({ ...p, longTerm: p.longTerm.some((t) => t.id === task.id) ? p.longTerm : [updatedTask, ...p.longTerm] })); break;
           case "noDeadline":  setFutureTasks((p) => ({ ...p, noDeadline: p.noDeadline.some((t) => t.id === task.id) ? p.noDeadline : [updatedTask, ...p.noDeadline] })); break;
         }
       };
@@ -1098,8 +1148,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
         switch (tab) {
           case "today":       setIncompleteTasks((p) => p.filter((t) => t.id !== task.id)); break;
           case "tomorrow":    setTomorrowTasks((p) => p.filter((t) => t.id !== task.id)); break;
+          case "dayAfterTomorrow": setDayAfterTomorrowTasks((p) => p.filter((t) => t.id !== task.id)); break;
           case "withinWeek":  setFutureTasks((p) => ({ ...p, withinWeek: p.withinWeek.filter((t) => t.id !== task.id) })); break;
           case "withinMonth": setFutureTasks((p) => ({ ...p, withinMonth: p.withinMonth.filter((t) => t.id !== task.id) })); break;
+          case "longTerm":    setFutureTasks((p) => ({ ...p, longTerm: p.longTerm.filter((t) => t.id !== task.id) })); break;
           case "noDeadline":  setFutureTasks((p) => ({ ...p, noDeadline: p.noDeadline.filter((t) => t.id !== task.id) })); break;
         }
       };
@@ -1527,9 +1579,11 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                 { key: "expired" as TabKey, label: "期限切れ", count: filteredExpiredTasks.length },
                 { key: "today" as TabKey, label: "本日", count: filteredIncompleteTasks.length },
                 { key: "tomorrow" as TabKey, label: "明日", count: filteredTomorrowTasks.length },
+                { key: "dayAfterTomorrow" as TabKey, label: "明後日", count: filteredDayAfterTomorrowTasks.length },
                 { key: "completed" as TabKey, label: "完了", count: filteredCompletedTasks.length },
                 { key: "withinWeek" as TabKey, label: "一週間", count: filteredFutureTasks.withinWeek.length },
                 { key: "withinMonth" as TabKey, label: "一ヶ月", count: filteredFutureTasks.withinMonth.length },
+                { key: "longTerm" as TabKey, label: "一ヶ月以上", count: filteredFutureTasks.longTerm.length },
                 { key: "noDeadline" as TabKey, label: "期限なし", count: filteredFutureTasks.noDeadline.length },
               ]
                 .filter((tab) => settings.visibleLists[tab.key])
@@ -1643,6 +1697,27 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                   )}
                 </div>
               )}
+              {activeTab === "dayAfterTomorrow" && settings.visibleLists.dayAfterTomorrow && (
+                <div>
+                  <h2 className="text-sm font-semibold text-amber-600 uppercase tracking-wide mb-3">
+                    明後日のタスク <span className="font-normal text-amber-400">({filteredDayAfterTomorrowTasks.length}件)</span>
+                  </h2>
+                  {filteredDayAfterTomorrowTasks.length === 0 ? (
+                    <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">明後日期限のタスクがここに表示されます</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredDayAfterTomorrowTasks.map((task) => (
+                        <TaskCard key={task.id} task={task} variant="dayAfterTomorrow"
+                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isMenuOpen={isTaskMenuOpen(task.id, "dayAfterTomorrow")}
+                          onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
+                          onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
+                          onMenuToggle={() => toggleTaskMenu(task.id, "dayAfterTomorrow")}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {activeTab === "withinWeek" && settings.visibleLists.withinWeek && (
                 <div>
                   <h2 className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-3">
@@ -1679,6 +1754,27 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
                           onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
                           onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
                           onMenuToggle={() => toggleTaskMenu(task.id, "withinMonth")}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "longTerm" && settings.visibleLists.longTerm && (
+                <div>
+                  <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-3">
+                    一ヶ月以上先のタスク <span className="font-normal text-purple-400">({filteredFutureTasks.longTerm.length}件)</span>
+                  </h2>
+                  {filteredFutureTasks.longTerm.length === 0 ? (
+                    <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">一ヶ月以上先のタスクがここに表示されます</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredFutureTasks.longTerm.map((task) => (
+                        <TaskCard key={task.id} task={task} variant="longTerm"
+                          isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isMenuOpen={isTaskMenuOpen(task.id, "longTerm")}
+                          onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
+                          onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
+                          onMenuToggle={() => toggleTaskMenu(task.id, "longTerm")}
                         />
                       ))}
                     </div>
@@ -1875,6 +1971,39 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               </div>
               )}
 
+              {/* 明後日のタスクカラム */}
+              {settings.visibleLists.dayAfterTomorrow && (
+              <div
+                onDragOver={(e) => handleDragOver(e, "dayAfterTomorrow")}
+                onDrop={(e) => handleDrop(e, "dayAfterTomorrow")}
+                onDragLeave={handleDragLeave}
+                className={dragOverTarget === "dayAfterTomorrow" && isDropAllowed("dayAfterTomorrow") ? "ring-2 ring-amber-400 rounded-lg" : ""}
+              >
+                <h2 className="text-sm font-semibold text-amber-600 uppercase tracking-wide mb-3">
+                  明後日のタスク{" "}
+                  <span className="font-normal text-amber-400">
+                    ({filteredDayAfterTomorrowTasks.length}件)
+                  </span>
+                </h2>
+                {filteredDayAfterTomorrowTasks.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                    明後日期限のタスクがここに表示されます
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredDayAfterTomorrowTasks.map((task) => (
+                      <TaskCard key={task.id} task={task} variant="dayAfterTomorrow"
+                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isMenuOpen={isTaskMenuOpen(task.id, "dayAfterTomorrow")}
+                        draggable={!isMobile()} onDragStart={(e) => handleDragStart(e, task, "dayAfterTomorrow")} onDragEnd={handleDragEnd}
+                        onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
+                        onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
+                        onMenuToggle={() => toggleTaskMenu(task.id, "dayAfterTomorrow")}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              )}
 
               {/* 一週間以内カラム */}
               {settings.visibleLists.withinWeek && (
@@ -1944,6 +2073,40 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
               </div>
               )}
 
+              {/* 一ヶ月以上先カラム */}
+              {settings.visibleLists.longTerm && (
+              <div
+                onDragOver={(e) => handleDragOver(e, "longTerm")}
+                onDrop={(e) => handleDrop(e, "longTerm")}
+                onDragLeave={handleDragLeave}
+                className={dragOverTarget === "longTerm" && isDropAllowed("longTerm") ? "ring-2 ring-purple-400 rounded-lg" : ""}
+              >
+                <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-3">
+                  一ヶ月以上先{" "}
+                  <span className="font-normal text-purple-400">
+                    ({filteredFutureTasks.longTerm.length}件)
+                  </span>
+                </h2>
+                {filteredFutureTasks.longTerm.length === 0 ? (
+                  <div className="text-center py-12 text-gray-300 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                    一ヶ月以上先のタスクがここに表示されます
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredFutureTasks.longTerm.map((task) => (
+                      <TaskCard key={task.id} task={task} variant="longTerm"
+                        isCompleting={completing.has(task.id)} isChangingDue={changingDue.has(task.id)} isMenuOpen={isTaskMenuOpen(task.id, "longTerm")}
+                        draggable={!isMobile()} onDragStart={(e) => handleDragStart(e, task, "longTerm")} onDragEnd={handleDragEnd}
+                        onComplete={() => completeTask(task)} onEdit={() => { setEditingTask(task); setShowTaskMenu(null); }} onDelete={() => deleteTask(task)} onDatePickerOpen={(e) => openDatePicker(task, e)}
+                        onClick={(e) => handleTaskClick(task, e)} onTouchStart={(e) => handleTaskTouchStart(task, e)} onTouchEnd={handleTaskTouchEnd} onTouchMove={handleTaskTouchMove}
+                        onMenuToggle={() => toggleTaskMenu(task.id, "longTerm")}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              )}
+
               {/* 期限なしカラム */}
               {settings.visibleLists.noDeadline && (
               <div
@@ -1993,8 +2156,10 @@ export default function TaskList({ initialTasks, initialExpiredTasks, initialCom
           ...expiredTasks,
           ...completedTasks,
           ...tomorrowTasks,
+          ...dayAfterTomorrowTasks,
           ...futureTasks.withinWeek,
           ...futureTasks.withinMonth,
+          ...futureTasks.longTerm,
           ...futureTasks.noDeadline,
         ]}
         taskLists={taskLists}
