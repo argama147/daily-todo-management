@@ -125,10 +125,13 @@ export function updateCategoriesFromTasks(tasks: { listTitle: string }[]): void 
   });
 
   // フィルターセットにも新しいカテゴリーを追加
+  // デフォルト（ALL）セットは新しい種別も自動表示するが、
+  // ユーザーが手動で絞り込んだカスタムセットには自動的に含めない（OFFで追加）。
+  // そうしないと、後から作られた無関係な種別がカスタムグループの選択肢に紛れ込んでしまう。
   settings.taskFilterSets.forEach(filterSet => {
     tasks.forEach(task => {
       if (task.listTitle && !(task.listTitle in filterSet.categories)) {
-        filterSet.categories[task.listTitle] = true;
+        filterSet.categories[task.listTitle] = filterSet.isDefault;
         needsUpdate = true;
       }
     });
